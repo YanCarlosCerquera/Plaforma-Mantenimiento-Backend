@@ -9,9 +9,10 @@ import { RolModule } from './Segurity/rol/rol.module';
 import { ViewsModule } from './Segurity/views/views.module';
 import { AuthModule } from './auth/auth/auth.module';
 import { DepartamentsModule } from './Parametrization/departaments/departaments.module';
+import { TrainingCentersModule } from './parametrization/training-centers/training-centers.module';
 
 @Module({
-  imports: [MongooseModule.forRoot('mongodb://localhost:4040/sena'), UsersModule , ModulosModule, RolModule, ViewsModule, AuthModule, DepartamentsModule],
+  imports: [MongooseModule.forRoot('mongodb://localhost:4040/sena'), UsersModule , ModulosModule, RolModule, ViewsModule, AuthModule, DepartamentsModule, TrainingCentersModule],
   controllers: [AppController],
   providers: [AppService],
 })

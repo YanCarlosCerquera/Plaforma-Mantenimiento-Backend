@@ -2,12 +2,12 @@ import { ApiProperty } from "@nestjs/swagger"
 import { IsBoolean, IsNotEmpty, IsOptional, IsString } from "class-validator"
 
 export class CreateModuloDto {
-    @ApiProperty({ description: 'nombre de la vista' })
+    @ApiProperty({ description: 'nombre del modulo' })
     @IsNotEmpty({ message: 'El nombre es obligatoria' })
     @IsString()
     name: string
 
-    @ApiProperty({ description: 'descripción de la vista' })
+    @ApiProperty({ description: 'descripción del modulo' })
     @IsNotEmpty({ message: 'La descripción es obligatoria' })
     @IsString()
     description: string

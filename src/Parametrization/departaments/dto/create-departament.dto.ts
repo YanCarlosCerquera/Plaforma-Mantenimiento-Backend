@@ -2,18 +2,18 @@ import { ApiProperty } from "@nestjs/swagger";
 import { IsBoolean, IsNotEmpty, IsOptional, IsString } from "class-validator";
 
 export class CreateDepartamentDto {
-    @ApiProperty({ description: 'nombre de la vista' })
+    @ApiProperty({ description: 'nombre del departamento' })
     @IsNotEmpty({ message: 'El nombre es obligatoria' })
     @IsString()
     name: string
 
-    @ApiProperty({ description: 'descripción de la vista' })
+    @ApiProperty({ description: 'descripción del departamento' })
     @IsNotEmpty({ message: 'La descripción es obligatoria' })
     @IsString()
     description: string
 
     @ApiProperty({
-        description: 'Estado del modulo (activo o inactivo)',
+        description: 'Estado del departamento (activo o inactivo)',
         required: false,
     })
     @IsOptional()
