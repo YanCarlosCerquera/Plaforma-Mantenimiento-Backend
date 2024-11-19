@@ -11,9 +11,10 @@ import { AuthModule } from './auth/auth/auth.module';
 import { DepartamentsModule } from './Parametrization/departaments/departaments.module';
 import { TrainingCentersModule } from './parametrization/training-centers/training-centers.module';
 import { CityModule } from './Parametrization/city/city.module';
+import { DependeceModule } from './Parametrization/dependece/dependece.module';
 
 @Module({
-  imports: [MongooseModule.forRoot('mongodb://localhost:4040/sena'), UsersModule , ModulosModule, RolModule, ViewsModule, AuthModule, DepartamentsModule, TrainingCentersModule , CityModule],
+  imports: [MongooseModule.forRoot('mongodb://localhost:27017/sena'), UsersModule , ModulosModule, RolModule, ViewsModule, AuthModule, DepartamentsModule, TrainingCentersModule , CityModule, DependeceModule],
   controllers: [AppController],
   providers: [AppService],
 })
