@@ -7,7 +7,7 @@ import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 
 @Injectable()
-export class ViewsService extends GenericService<View, CreateViewDto>{
+export class ViewsService extends GenericService<View, CreateViewDto, UpdateViewDto>{
   
   constructor(@InjectModel(View.name)private viewModel: Model<View>, ){
     super(viewModel)

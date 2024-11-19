@@ -7,7 +7,7 @@ import { GenericService } from 'src/Generic/generic.service';
 import { Modulo } from './entities/modulo.entity';
 
 @Controller('modulos')
-export class ModulosController  extends GenericController<Modulo , CreateModuloDto>{
+export class ModulosController  extends GenericController<Modulo , CreateModuloDto, UpdateModuloDto>{
   constructor(private readonly modulosService: ModulosService) {
     super(modulosService)
   }

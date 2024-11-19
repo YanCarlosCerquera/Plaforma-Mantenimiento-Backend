@@ -1,6 +1,6 @@
 import { Model } from 'mongoose';
 import { Document } from 'mongoose';
-export class GenericService <T extends Document, I> {
+export class GenericService <T extends Document, I, U> {
   constructor(private readonly model: Model<T>) {}
 
   async create(createDto: I): Promise<T> {
@@ -16,7 +16,7 @@ export class GenericService <T extends Document, I> {
     return await this.model.findById(id).exec();
   }
 
-  async update(id: string, updateDto: I): Promise<T | null> {
+  async update(id: string, updateDto: U): Promise<T | null> {
     return await this.model.findByIdAndUpdate(id, updateDto, { new: true }).exec();
   }
 

@@ -6,7 +6,7 @@ import { GenericController } from 'src/Generic/generic.controller';
 import { View } from './entities/view.entity';
 
 @Controller('views')
-export class ViewsController extends GenericController<View, CreateViewDto>{
+export class ViewsController extends GenericController<View, CreateViewDto, UpdateViewDto>{
   constructor(private readonly viewsService: ViewsService) {
     super(viewsService)
   }

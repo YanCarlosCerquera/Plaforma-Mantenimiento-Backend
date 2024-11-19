@@ -6,7 +6,7 @@ import { GenericController } from 'src/Generic/generic.controller';
 import { Rol } from './entities/rol.entity';
 
 @Controller('rol')
-export class RolController extends GenericController<Rol,CreateRolDto>{
+export class RolController extends GenericController<Rol,CreateRolDto, UpdateRolDto>{
   constructor(private readonly rolService: RolService) {
     super(rolService)
   }

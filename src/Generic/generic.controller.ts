@@ -2,8 +2,8 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { GenericService } from './generic.service';
 import { Document } from 'mongoose';
 
-export class GenericController<T extends Document, I> {
-  constructor(private readonly genericService: GenericService<T, I>) {}
+export class GenericController<T extends Document, I, U> {
+  constructor(private readonly genericService: GenericService<T, I, U>) {}
 
   @Post()
   create(@Body() createDto: I) {
@@ -21,7 +21,7 @@ export class GenericController<T extends Document, I> {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateDto: I) {
+  update(@Param('id') id: string, @Body() updateDto: U) {
     return this.genericService.update(id, updateDto);
   }
 
