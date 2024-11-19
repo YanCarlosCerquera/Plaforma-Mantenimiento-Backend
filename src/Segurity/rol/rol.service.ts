@@ -7,7 +7,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 @Injectable()
-export class RolService extends GenericService<Rol,CreateRolDto>{
+export class RolService extends GenericService<Rol,CreateRolDto, UpdateRolDto>{
 
   constructor(@InjectModel(Rol.name)private rolModel: Model<Rol>, ){
     super(rolModel)

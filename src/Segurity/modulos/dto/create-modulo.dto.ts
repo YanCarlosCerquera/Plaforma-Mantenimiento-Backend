@@ -13,10 +13,10 @@ export class CreateModuloDto {
     description: string
 
     @ApiProperty({
-        description: 'Estado del modulo (activo o inactivo)',
-        required: false,
-      })
-      @IsOptional()
-      @IsBoolean()
-      state?: boolean;
+      description: 'Estado del modulo (activo o inactivo)',
+      required: false,
+    })
+    @IsOptional()
+    @IsBoolean()
+    state?: boolean;
 }
