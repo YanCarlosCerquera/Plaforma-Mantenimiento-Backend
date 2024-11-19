@@ -18,6 +18,13 @@ export class RolService extends GenericService<Rol,CreateRolDto>{
   }
 
   async findAll(): Promise<Rol[]> {
-    return await this.rolModel.find().populate('views', 'name').exec();
+    return await this.rolModel.find().populate({ 
+      path: 'views',
+      select: 'name',
+      populate: {
+        path: 'moduloId',
+        select: 'name'
+      }
+    }).exec();
   }
 }

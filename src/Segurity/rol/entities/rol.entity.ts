@@ -5,14 +5,14 @@ import { View } from "src/Segurity/views/entities/view.entity";
 @Schema({timestamps: true})
 export class Rol extends Document{
    
-    @Prop()
+    @Prop({required: true})
     name: string
 
-    @Prop()
+    @Prop({required: true})
     description: string
 
-    @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'View'}] })
-    views?: View[]
+    @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'View'}], required: true })
+    views: View[]
 
     @Prop()
     state?: boolean

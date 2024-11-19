@@ -17,11 +17,11 @@ export class CreateRolDto {
     description: 'Lista de vistas asociadas al rol (referencias a ObjectId de las vistas)',
     required: false,
   })
-  @IsOptional()
+  @IsNotEmpty()
   @IsArray()
   @IsMongoId({ each: true, message: 'Cada vista debe ser un ObjectId válido' })
   @Type(() => String) 
-  views?: string[];
+  views: string[];
 
   @ApiProperty({
     description: 'Estado del rol (activo o inactivo)',

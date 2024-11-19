@@ -1,20 +1,20 @@
 import { Prop,Schema, SchemaFactory } from "@nestjs/mongoose";
-import * as mongoose from 'mongoose';
+import mongoose, { Document } from 'mongoose';
 import { Modulo } from "src/Segurity/modulos/entities/modulo.entity";
 
 @Schema({timestamps: true})
-export class View extends mongoose.Document{
+export class View extends Document{
 
-    @Prop()
+    @Prop({required: true})
     name: string
 
-    @Prop()
+    @Prop({required: true})
     description: string
 
-    @Prop()
+    @Prop({required: true})
     route: string
 
-    @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Modulo'})
+    @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Modulo', required: true})
     moduloId: Modulo
 
     @Prop()

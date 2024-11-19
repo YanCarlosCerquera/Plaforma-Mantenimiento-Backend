@@ -3,10 +3,10 @@ import { Document } from "mongoose";
 @Schema({timestamps : true})
 export class Modulo extends Document {
 
-    @Prop()
+    @Prop({required: true})
     name:string
 
-    @Prop()
+    @Prop({required: true})
     description:string
 
     @Prop()
