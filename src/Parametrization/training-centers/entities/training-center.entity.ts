@@ -1,6 +1,6 @@
-import { Prop, SchemaFactory } from "@nestjs/mongoose";
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import mongoose, { Document } from "mongoose";
-
+@Schema({timestamps : true})
 export class TrainingCenter extends Document{
     @Prop({required: true})
     name: string
