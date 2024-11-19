@@ -17,10 +17,10 @@ export class CreateTrainingCenterDto {
     @IsString()
     code: string
 
-    /*@IsMongoId({ message: 'EL  municipio debe ser un ObjectId válido' })
+    @IsMongoId({ message: 'EL  municipio debe ser un ObjectId válido' })
     @ApiProperty({ description: 'municipio del centro de formacion' })
     @IsNotEmpty({ message: 'El municipio es obligatoria' })
-    cityId: string*/
+    cityId: string
 
     @ApiProperty({
         description: 'Estado del cenro de formacion (activo o inactivo)',

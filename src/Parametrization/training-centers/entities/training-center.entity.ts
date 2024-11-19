@@ -1,6 +1,8 @@
-import { Prop, SchemaFactory } from "@nestjs/mongoose";
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import mongoose, { Document } from "mongoose";
+import { City } from "src/Parametrization/city/entities/city.entity";
 
+@Schema({timestamps: true})
 export class TrainingCenter extends Document{
     @Prop({required: true})
     name: string
@@ -11,8 +13,8 @@ export class TrainingCenter extends Document{
     @Prop({required: true})
     code: string
 
-    /*@Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'City', required: true})
-    CityId: City*/
+    @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'City', required: true})
+    cityId: City
 
     @Prop()
     state?: boolean

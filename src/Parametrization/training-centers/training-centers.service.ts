@@ -11,4 +11,26 @@ export class TrainingCentersService extends GenericService<TrainingCenter, Creat
   constructor(@InjectModel(TrainingCenter.name)private trainingModel: Model<TrainingCenter> ){
     super(trainingModel)
   }
+
+  async findAll(): Promise<TrainingCenter[]> {
+    return await this.trainingModel.find().populate({
+      path: 'cityId',
+      select: 'name',
+      populate: {
+        path: 'departamentId',
+        select: 'name'
+      }
+    }).exec()
+  }
+
+  async findOne(id: string): Promise<TrainingCenter> {
+    return await this.trainingModel.findById(id).populate({
+      path: 'cityId',
+      select: 'name',
+      populate: {
+        path: 'departamentId',
+        select: 'name'
+      }
+    }).exec()
+  }
 }
