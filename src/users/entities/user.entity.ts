@@ -32,6 +32,9 @@ export class User extends Document{
     @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Rol'})
     assignedRol?: Rol
 
+    @Prop({ required: false })
+    tokenReference?: string; 
+
     @Prop()
     state?: boolean
 }

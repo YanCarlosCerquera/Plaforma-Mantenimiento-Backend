@@ -33,10 +33,10 @@ return {messaje :"Bienvido pepeito" , resul}
 
   @Post('reset-password')
   async resetearContrasena(
-    @Body('token') token: string,
+    @Body('userId') userId: string,
     @Body('nuevaContrasena') nuevaContrasena: string
-  ): Promise<void> {
-    console.log('Token recibido:', token); 
-    await this.authService.resetearContrasena(token, nuevaContrasena);
+  ): Promise<{ mensaje: string }> {
+    await this.authService.resetearContrasena(userId, nuevaContrasena);
+    return { mensaje: 'Contraseña actualizada correctamente' };
   }
 }
