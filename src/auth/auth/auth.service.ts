@@ -8,31 +8,36 @@ import { Document } from 'mongoose';
 import { LoginDto } from './dto/Login';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from 'src/users/users.service';
+import { RolService } from 'src/Segurity/rol/rol.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly userSerice: UsersService,
+    private readonly rolService: RolService,
     private jwtservice : JwtService
   ) {}
 
-  async login(loginDto: LoginDto): Promise<{ access_token: string}> {
-    const { email, password } = loginDto;
-    const user = await this.userSerice.findEmail(email);
+  async login(loginDto: LoginDto): Promise<object> {
+    const user = await this.userSerice.authentication(loginDto.document, loginDto.typeDocument);
 
     if (!user) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
     
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
   
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Credenciales inválidasObjectUser');
+      throw new UnauthorizedException('Credenciales inválidas');
     }
+
+    const rolId = user.assignedRol._id.toString();
+    const menu = await this.rolService.menu(rolId)
     
     const payload = { sub: user._id, email: user.email };
     return {
       access_token: this.jwtservice.sign(payload),
+      menu: menu
     };
   }
 }  

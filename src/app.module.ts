@@ -14,7 +14,8 @@ import { CityModule } from './Parametrization/city/city.module';
 import { DependeceModule } from './Parametrization/dependece/dependece.module';
 
 @Module({
-  imports: [MongooseModule.forRoot('mongodb://localhost:27017/sena'), UsersModule , ModulosModule, RolModule, ViewsModule, AuthModule, DepartamentsModule, TrainingCentersModule , CityModule, DependeceModule],
+  //imports: [MongooseModule.forRoot('mongodb://localhost:27017/sena'), UsersModule , ModulosModule, RolModule, ViewsModule, AuthModule, DepartamentsModule, TrainingCentersModule , CityModule, DependeceModule],
+  imports: [MongooseModule.forRoot('mongodb://localhost:4040/sena'), UsersModule , ModulosModule, RolModule, ViewsModule, AuthModule, DepartamentsModule, TrainingCentersModule , CityModule, DependeceModule],
   controllers: [AppController],
   providers: [AppService],
 })

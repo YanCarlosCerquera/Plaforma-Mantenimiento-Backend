@@ -1,16 +1,17 @@
-import { IsNotEmpty, IsString } from "class-validator";
+import { IsEnum, IsNotEmpty, IsString } from "class-validator";
+import { TypeDocuments } from "src/enum/typeDocument.enum";
 
 export class LoginDto {
     @IsString()
     @IsNotEmpty()
-    email: string;
+    document: string;
 
     @IsString()
     @IsNotEmpty()
     password: string;
 
-    @IsString()
+    @IsEnum(TypeDocuments)
     @IsNotEmpty()
-    typeDocument:string;
+    typeDocument: TypeDocuments;
   }
   

@@ -32,4 +32,12 @@ import { GenericService } from 'src/Generic/generic.service';
     async findEmail(email: string): Promise<User> {
       return await this.UserModel.findOne({email}).exec()
     }
+
+    async authentication(document: string, typeDocument: string): Promise<User> {
+      return await this.UserModel.findOne({
+        numberDocument: document,
+        typeDocument: typeDocument,
+        state: true
+      }).exec()
+    }
   }
