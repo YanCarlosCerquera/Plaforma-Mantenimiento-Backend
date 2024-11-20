@@ -1,6 +1,8 @@
-import { IsString, IsEmail, IsPhoneNumber, IsBoolean, IsOptional, IsNotEmpty, IsIdentityCard, IsMongoId } from 'class-validator';
+import { IsString, IsEmail, IsPhoneNumber, IsBoolean, IsOptional, IsNotEmpty, IsIdentityCard, IsMongoId, IsEnum } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { ObjectId } from 'mongoose';
+import { TypeDocuments } from 'src/enum/typeDocument.enum';
+import { Positions } from 'src/enum/position.enum';
 
 export class CreateUserDto {
   
@@ -20,9 +22,9 @@ export class CreateUserDto {
   phone: string;
 
   @ApiProperty({ description: 'Tipo de documento (ej. cédula, pasaporte)' })
-  @IsString()
+  @IsEnum(TypeDocuments)
   @IsNotEmpty({ message: 'El tipo de documento es obligatorio y no puede estar vacío.' })
-  typeDocument: string;
+  typeDocument: TypeDocuments;
 
   @ApiProperty({ description: 'Número de documento (ej. número de cédula, pasaporte)' })
   @IsIdentityCard()	
@@ -36,8 +38,8 @@ export class CreateUserDto {
 
   @ApiProperty({ description: 'Cargo asignado al usuario (opcional)', required: false })
   @IsOptional()
-  @IsString({ message: 'El cargo debe ser una cadena de texto.' })
-  assignedPosition?: string;
+  @IsEnum(Positions)
+  assignedPosition?: Positions;
 
   @ApiProperty({ description: 'Rol asignado al usuario (opcional)', required: false })
   @IsOptional()

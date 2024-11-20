@@ -44,4 +44,13 @@ import { GenericService } from 'src/Generic/generic.service';
       user.password = newPassword;
       await user.save();
     }
-  }  
+  
+
+    async authentication(document: string, typeDocument: string): Promise<User> {
+      return await this.UserModel.findOne({
+        numberDocument: document,
+        typeDocument: typeDocument,
+        state: true
+      }).exec()
+    }
+  }

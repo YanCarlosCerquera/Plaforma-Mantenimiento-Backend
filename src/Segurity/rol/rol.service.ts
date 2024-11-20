@@ -7,24 +7,61 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 @Injectable()
-export class RolService extends GenericService<Rol,CreateRolDto, UpdateRolDto>{
+export class RolService extends GenericService<Rol, CreateRolDto, UpdateRolDto> {
 
-  constructor(@InjectModel(Rol.name)private rolModel: Model<Rol>, ){
+  constructor(@InjectModel(Rol.name) private rolModel: Model<Rol>,) {
     super(rolModel)
   }
 
   async findOne(id: string): Promise<Rol> {
-    return await this.rolModel.findById(id).populate('views', 'name').exec();
-  }
-
-  async findAll(): Promise<Rol[]> {
-    return await this.rolModel.find().populate({ 
+    return await this.rolModel.findById(id).populate({
       path: 'views',
-      select: 'name',
+      select: 'name route',
       populate: {
         path: 'moduloId',
         select: 'name'
       }
     }).exec();
   }
+
+  async findAll(): Promise<Rol[]> {
+    return await this.rolModel.find().populate({
+      path: 'views',
+      select: 'name route',
+      populate: {
+        path: 'moduloId',
+        select: 'name'
+      }
+    }).exec();
+  }
+
+  async menu(id: string): Promise<object> {
+    const data = await this.findOne(id);
+  
+    const menu = Object.values(
+      data.views.reduce((acc: any, view: any) => {
+        const moduloName = view.moduloId.name;
+  
+        if (!acc[moduloName]) {
+          acc[moduloName] = {
+            modulo: moduloName,
+            views: [],
+          };
+        }
+  
+        acc[moduloName].views.push({
+          name: view.name,
+          route: view.route,
+        });
+  
+        return acc;
+      }, {})
+    );
+  
+    return {
+      role: data.name,
+      menu,
+    };
+  }
+  
 }

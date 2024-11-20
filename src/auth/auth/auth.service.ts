@@ -1,65 +1,69 @@
 import { ConflictException, Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UsersService } from 'src/users/users.service';
 import { MailerService } from '@nestjs-modules/mailer';
-import { LoginDto } from './dto/Login';
+import { UsersService } from 'src/users/users.service';
+import { RolService } from 'src/Segurity/rol/rol.service';
 import * as bcrypt from 'bcrypt';
-import { User } from 'src/users/entities/user.entity';
-import { UpdateUserDto } from 'src/users/dto/update-user.dto';
-import { Document, Types } from 'mongoose';
+import { LoginDto } from './dto/Login';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly userService: UsersService,
-    private jwtService: JwtService,
-    private mailerService: MailerService 
+    private readonly jwtService: JwtService,
+    private readonly mailerService: MailerService,
+    private readonly rolService: RolService,
   ) {}
 
-  async login(loginDto: LoginDto): Promise<{ access_token: string }> {
-    const { email, password } = loginDto;
-    const user = await this.userService.findEmail(email);
+  /**
+   * Login Method
+   */
+  async login(loginDto: LoginDto): Promise<object> {
+    const user = await this.userService.authentication(loginDto.document, loginDto.typeDocument);
 
     if (!user) {
-      console.log(user);
-      
+      throw new UnauthorizedException('Credenciales inválidas');
     }
     
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
   
     if (!isPasswordValid) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
+
+    const rolId = user.assignedRol._id.toString();
+    const menu = await this.rolService.menu(rolId)
     
     const payload = { sub: user._id, email: user.email };
     return {
       access_token: this.jwtService.sign(payload),
+      menu: menu
     };
   }
-
+  /**
+   * Password Recovery Initialization
+   */
   async iniciarRecuperacionContrasena(typeDocument: string, numberDocument: string): Promise<void> {
     try {
+      // Find user by document
       const user = await this.userService.findByDocumento(typeDocument, numberDocument);
-      console.log('Usuario encontrado:', user);
-  
       if (!user) throw new NotFoundException('Usuario no encontrado');
-  
+
+      // Generate recovery token
       const token = this.jwtService.sign(
         { sub: user._id.toString(), typeDocument: user.typeDocument, numberDocument: user.numberDocument },
         { expiresIn: '1h' }
       );
-      console.log('Token generado:', token);
-  
+
+      // Email recovery link
       const urlRecuperacion = `http://localhost:3000/users?token=${token}`;
-  
       const htmlContent = `
         <h1>Hola ${user.name},</h1>
         <p>Haz clic en el enlace para restablecer tu contraseña:</p>
         <a href="${urlRecuperacion}">Restablecer Contraseña</a>
-        <a href="${token}"></a>
         <p>Este enlace expirará en 1 hora.</p>
       `;
-  
+
       await this.mailerService.sendMail({
         to: user.email,
         subject: 'Recuperación de Contraseña',
@@ -71,19 +75,20 @@ export class AuthService {
       throw new Error('No se pudo iniciar el proceso de recuperación de contraseña');
     }
   }
-  
+
+  /**
+   * Password Reset
+   */
   async resetearContrasena(token: string, nuevaContrasena: string): Promise<void> {
     try {
-      console.log('Token recibido en servicio:', token);
+      // Verify token
       const payload = this.jwtService.verify(token);
-  
-      console.log('Payload del token:', payload);
-  
+
+      // Find user by document
       const user = await this.userService.findByDocumento(payload.typeDocument, payload.numberDocument);
-      if (!user) {
-        throw new UnauthorizedException('Usuario no encontrado');
-      }
-  
+      if (!user) throw new UnauthorizedException('Usuario no encontrado');
+
+      // Update password
       const hashedPassword = await bcrypt.hash(nuevaContrasena, 10);
       await this.userService.updatePassword(user._id.toString(), hashedPassword);
     } catch (error) {
