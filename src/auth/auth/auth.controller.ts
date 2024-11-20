@@ -2,22 +2,24 @@ import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/Login';
 import { log } from 'console';
+import { Public } from './decorators/public.decorator';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
+  @Public()
   @Post('login')
-  login(@Body() authDto: LoginDto) {
-    try{
-      const resul =  this.authService.login(authDto);
-
-return {messaje :"Bienvido pepeito" , resul}
-    } catch(error){
+  async login(@Body() authDto: LoginDto) {
+    try {
+      const resul = await this.authService.login(authDto);
+      return { messaje: "Bienvenido pepeito", resul: resul }
+    } catch (error) {
 
     }
   }
 
+  @Public()
   @Post('iniciar-recuperacion')
   async iniciarRecuperacionContrasena(
     @Body('typeDocument') typeDocument: string,
@@ -31,6 +33,7 @@ return {messaje :"Bienvido pepeito" , resul}
     }
   }
 
+  @Public()
   @Post('reset-password')
   async resetearContrasena(
     @Body('userId') userId: string,
@@ -38,5 +41,6 @@ return {messaje :"Bienvido pepeito" , resul}
   ): Promise<{ mensaje: string }> {
     await this.authService.resetearContrasena(userId, nuevaContrasena);
     return { mensaje: 'Contraseña actualizada correctamente' };
-  }
+  
+}
 }

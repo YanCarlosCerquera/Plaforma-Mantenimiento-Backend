@@ -13,7 +13,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly mailerService: MailerService,
     private readonly rolService: RolService,
-  ) {}
+  ) { }
 
   /**
    * Login Method
@@ -24,16 +24,16 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
-    
+
     const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
-  
+
     if (!isPasswordValid) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
     const rolId = user.assignedRol._id.toString();
     const menu = await this.rolService.menu(rolId)
-    
+
     const payload = { sub: user._id, email: user.email };
     return {
       access_token: this.jwtService.sign(payload),
