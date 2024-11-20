@@ -1,4 +1,4 @@
-  import { Injectable } from '@nestjs/common';
+  import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
   import { CreateUserDto } from './dto/create-user.dto';
   import { UpdateUserDto } from './dto/update-user.dto';
   import * as bcrypt from 'bcrypt';
@@ -32,4 +32,16 @@ import { GenericService } from 'src/Generic/generic.service';
     async findEmail(email: string): Promise<User> {
       return await this.UserModel.findOne({email}).exec()
     }
-  }
+    async findByDocumento(typeDocument: string, numberDocument: string): Promise<User | null> {
+      return this.UserModel.findOne({ typeDocument, numberDocument }).exec();
+    }
+    
+    async updatePassword(userId: string, newPassword: string): Promise<void> {
+      const user = await this.UserModel.findById(userId);
+      if (!user) {
+        throw new NotFoundException('Usuario no encontrado');
+      }
+      user.password = newPassword;
+      await user.save();
+    }
+  }  
