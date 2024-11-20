@@ -17,7 +17,7 @@ import { join } from 'path';
 
 @Module({
   imports: [
-    MongooseModule.forRoot('mongodb://localhost:27017/sena'),
+    MongooseModule.forRoot('mongodb://localhost:4040/sena'),
     MailerModule.forRoot({
       transport: {
         host: 'smtp.gmail.com',
