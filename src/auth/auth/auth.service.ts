@@ -15,47 +15,52 @@ export class AuthService {
     private readonly rolService: RolService,
   ) { }
 
-  /**
-   * Login Method
-   */
+  
   async login(loginDto: LoginDto): Promise<object> {
     const user = await this.userService.authentication(loginDto.document, loginDto.typeDocument);
 
     if (!user) {
-      throw new UnauthorizedException('Credenciales inválidas');
+      throw new UnauthorizedException('El documento o tipo de documento no existe');
     }
 
     const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Credenciales inválidas');
+      throw new UnauthorizedException('La contraseña es incorrecta');
     }
+
 
     const rolId = user.assignedRol._id.toString();
     const menu = await this.rolService.menu(rolId)
-
+    if (!menu) {
+      console.error('El menú no fue encontrado.');
+    } else {
+      console.log('Menú obtenido:', menu);
+    }
+    console.log(menu);
     const payload = { sub: user._id, email: user.email };
     return {
       access_token: this.jwtService.sign(payload),
       menu: menu
     };
+
   }
 
   async iniciarRecuperacionContrasena(typeDocument: string, numberDocument: string): Promise<void> {
     const user = await this.userService.findByDocumento(typeDocument, numberDocument);
-  
+
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
     }
-  
+
     const token = this.jwtService.sign(
       { sub: user._id.toString() },
-      { expiresIn: '15m' } 
+      { expiresIn: '15m' }
     );
-  
+
     user.tokenReference = token;
     await user.save();
-  
+
     const urlRecuperacion = `http://localhost:3000/reset-password/${user._id}`;
     const htmlContent = `
 <!DOCTYPE html>
@@ -162,27 +167,27 @@ export class AuthService {
 </html>
 `;
 
-    
-  
+
+
     await this.mailerService.sendMail({
       to: user.email,
       subject: 'Recuperación de Contraseña',
       html: htmlContent,
     });
   }
-  
 
- 
+
+
   async resetearContrasena(userId: string, nuevaContrasena: string): Promise<void> {
     const user = await this.userService.findOne(userId);
-  
+
     if (!user || !user.tokenReference) {
       throw new UnauthorizedException('No se encontró un proceso de recuperación válido');
     }
-  
+
     try {
       this.jwtService.verify(user.tokenReference);
-  
+
       const hashedPassword = await bcrypt.hash(nuevaContrasena, 10);
       user.password = hashedPassword;
       user.tokenReference = null;

@@ -13,8 +13,13 @@ export class AuthController {
   async login(@Body() authDto: LoginDto) {
     try {
       const resul = await this.authService.login(authDto);
+      console.log(resul);
+      
       return { messaje: "Bienvenido pepeito", resul: resul }
     } catch (error) {
+      console.error('Error en el login:', error.message);
+      throw error;
+
 
     }
   }
