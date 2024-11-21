@@ -2,33 +2,13 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { GenericController } from 'src/Generic/generic.controller';
+import { Category } from './entities/category.entity';
 
 @Controller('categories')
-export class CategoriesController {
-  constructor(private readonly categoriesService: CategoriesService) {}
-
-  @Post()
-  create(@Body() createCategoryDto: CreateCategoryDto) {
-    return this.categoriesService.create(createCategoryDto);
+export class CategoriesController extends GenericController<Category, CreateCategoryDto, UpdateCategoryDto>{
+  constructor(private readonly categoriesService: CategoriesService) {
+    super(categoriesService)
   }
 
-  @Get()
-  findAll() {
-    return this.categoriesService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.categoriesService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateCategoryDto: UpdateCategoryDto) {
-    return this.categoriesService.update(+id, updateCategoryDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.categoriesService.remove(+id);
-  }
 }
