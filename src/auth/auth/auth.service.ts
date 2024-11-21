@@ -32,12 +32,7 @@ export class AuthService {
 
     const rolId = user.assignedRol._id.toString();
     const menu = await this.rolService.menu(rolId)
-    if (!menu) {
-      console.error('El menú no fue encontrado.');
-    } else {
-      console.log('Menú obtenido:', menu);
-    }
-    console.log(menu);
+    
     const payload = { sub: user._id, email: user.email };
     return {
       access_token: this.jwtService.sign(payload),
