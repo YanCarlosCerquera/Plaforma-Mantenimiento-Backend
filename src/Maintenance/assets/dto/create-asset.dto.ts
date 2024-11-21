@@ -1,0 +1,73 @@
+import { IsString, IsNotEmpty, IsDate, IsBoolean, IsObject, IsOptional, IsMongoId, isMongoId, isBase64 } from 'class-validator';
+import { Types } from 'mongoose';
+
+export class CreateAssetDto {
+@IsString()
+@IsNotEmpty()
+image:string;
+
+    
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsString()
+  @IsNotEmpty()
+  location: string;
+
+  @IsDate()
+  @IsNotEmpty()
+  acquisitionDate: Date;
+
+  @IsString()
+  @IsNotEmpty()
+  brand: string;
+
+  @IsString()
+  @IsNotEmpty()
+  modelo: string;
+
+  @IsString()
+  @IsNotEmpty()
+  equipmentType: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  trainingCenterId: Types.ObjectId;
+
+  @IsString()
+  @IsNotEmpty()
+  serialNumber: string;
+
+  @IsString()
+  @IsNotEmpty()
+  inventoryCode: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  accountHolderId: Types.ObjectId;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  categoryId: string;
+
+  @IsObject()
+  @IsNotEmpty()
+  manufacturer: {
+    name: string;
+    address: string;
+    phone:string
+  };
+
+  @IsObject()
+  @IsNotEmpty()
+  supplier: {
+    name: string;
+    address: string;
+    phone:string
+  };
+
+  @IsBoolean()
+  @IsNotEmpty()
+  status: boolean;
+}

@@ -29,9 +29,6 @@ import { GenericService } from 'src/Generic/generic.service';
     return await this.UserModel.findByIdAndUpdate(id, updateDto, { new: true }).exec();
     }
 
-    async findEmail(email: string): Promise<User> {
-      return await this.UserModel.findOne({email}).exec()
-    }
     async findByDocumento(typeDocument: string, numberDocument: string): Promise<User | null> {
       return this.UserModel.findOne({ typeDocument, numberDocument }).exec();
     }

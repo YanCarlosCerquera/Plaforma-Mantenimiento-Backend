@@ -15,10 +15,11 @@ import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { join } from 'path';
 import { CategoriesModule } from './maintenance/categories/categories.module';
+import { AssetsModule } from './Maintenance/assets/assets.module';
 
 @Module({
   imports: [
-    MongooseModule.forRoot('mongodb://localhost:4040/sena'),
+    MongooseModule.forRoot('mongodb://localhost:27017/sena'),
     MailerModule.forRoot({
       transport: {
         host: 'smtp.gmail.com',
@@ -48,7 +49,8 @@ import { CategoriesModule } from './maintenance/categories/categories.module';
     TrainingCentersModule,
     CityModule,
     DependeceModule,
-    CategoriesModule
+    CategoriesModule,
+    AssetsModule
   ],
   controllers: [AppController],
   providers: [AppService],
