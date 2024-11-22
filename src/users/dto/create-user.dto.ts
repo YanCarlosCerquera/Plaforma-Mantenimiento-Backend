@@ -11,6 +11,11 @@ export class CreateUserDto {
   @IsNotEmpty({ message: 'El nombre es obligatorio y no puede estar vacío.' })
   name: string;
 
+  @ApiProperty({ description: 'Imagen de perfil del usuario' })
+  @IsString()
+  @IsOptional()
+  photo?: string   
+
   @ApiProperty({ description: 'Correo electrónico del usuario' })
   @IsEmail({}, { message: 'El correo electrónico debe ser válido.' })
   @IsNotEmpty({ message: 'El correo electrónico es obligatorio y no puede estar vacío.' })
