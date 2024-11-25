@@ -18,10 +18,12 @@ import { CategoriesModule } from './maintenance/categories/categories.module';
 import { AssetsModule } from './Maintenance/assets/assets.module';
 import { ApplicationMaintenanceModule } from './Maintenance/application-maintenance/application-maintenance.module';
 import { WordOrdenModule } from './Maintenance/word_orden/word_orden.module';
+import { MaintenanceModule } from './Maintenance/maintenance/maintenance.module';
+import { ActionLogModule } from './parametrization/action-log/action-log.module';
 
 @Module({
   imports: [
-    MongooseModule.forRoot('mongodb://localhost:27017/sena'),
+    MongooseModule.forRoot('mongodb://localhost:4040/sena'),
     MailerModule.forRoot({
       transport: {
         host: 'smtp.gmail.com',
@@ -54,7 +56,9 @@ import { WordOrdenModule } from './Maintenance/word_orden/word_orden.module';
     CategoriesModule,
     AssetsModule,
     ApplicationMaintenanceModule,
-    WordOrdenModule
+    WordOrdenModule,
+    MaintenanceModule,
+    ActionLogModule
   ],
   controllers: [AppController],
   providers: [AppService],
