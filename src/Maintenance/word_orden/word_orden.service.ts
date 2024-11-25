@@ -19,8 +19,11 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
     await this.validateWorkOrder(createDto);
 
     const createdItem = new this.OrdenModel(createDto);
+    const savedItem = await createdItem.save();
+    await this.maintenanceModel.findByIdAndUpdate(createDto.solicitud.solicitudId, { workOrderStatus: true });
+    return savedItem;
 
-    return await createdItem.save();
+
   }
   async validateWorkOrder(dto: CreateWordOrdenDto | UpdateWordOrdenDto): Promise<void> {
     if (dto.solicitud?.solicitudId) {
@@ -46,14 +49,14 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
     }
   }
 
-  async findAllWithDetails(): Promise<MaintenanceRequest[]> {
-    return this.OrdenModel.find({ StateOT: true })
+  async findAllWithDetails(): Promise<OrdenesTrabajo[]> {
+    return this.OrdenModel.find({ state: true })
       .populate('tecnicoId', 'nombre email')
       .populate('instructorId', 'nombre email')
       .populate({
         path: 'solicitud.solicitudId',
         model: this.maintenanceModel,
-        select: 'requesterName trackingNumber'
+        select: 'requesterName trackingNumber workOrderStatus'
       })
       .lean()
       .exec() as Promise<[]>;

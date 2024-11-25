@@ -2,6 +2,7 @@ import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 import { Types } from 'mongoose';
 import { MaintenanceRequest } from 'src/Maintenance/application-maintenance/entities/application-maintenance.entity';
+import { Maintenance } from 'src/Maintenance/maintenance/entities/maintenance.entity';
 import { User } from 'src/users/entities/user.entity';
 
 @Schema({ timestamps: true }) 
@@ -32,13 +33,8 @@ required: true })
     solicirud: MaintenanceRequest,
   };
 
-  @Prop({ type: Types.ObjectId, ref: 'Mantenimiento' })
-  Mantenimiento?:{
-   // mantenimientiId: MATENIMMIENT
-  };
-
   @Prop({ type: Boolean, default: true })
-  StateOT   : boolean;
+  state   : boolean;
 
   @Prop({ type: Date, default: null })
   deletedAt: Date;

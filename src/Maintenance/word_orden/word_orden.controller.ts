@@ -10,7 +10,7 @@ export class WordOrdenController extends GenericController <OrdenesTrabajo , Cre
   constructor(private readonly wordOrdenService: WordOrdenService) {
     super(wordOrdenService);
   }
-  @Get('with-details')
+  @Get('detalles')
   findAllWithDetails() {
     return this.wordOrdenService.findAllWithDetails();
   }

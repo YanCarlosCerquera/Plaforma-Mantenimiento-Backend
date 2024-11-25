@@ -7,7 +7,6 @@ import { RolModule } from 'src/Segurity/rol/rol.module';
 import { jwtConstant } from './auth.jwtConstants';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from './guards/auth/auth.guard';
-import { RoleGuard } from './guards/role/role.guard';
 
 @Module({
   imports: [
@@ -19,15 +18,9 @@ import { RoleGuard } from './guards/role/role.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, 
-    {
-      provide: APP_GUARD,
-      useClass: AuthGuard, 
-    },
-    {
-      provide: APP_GUARD,
-      useClass: RoleGuard, 
-    },
-  ],
+  providers: [AuthService,  /* {
+    provide: APP_GUARD,
+    useClass: AuthGuard,
+  } */ ],
 })
 export class AuthModule {}

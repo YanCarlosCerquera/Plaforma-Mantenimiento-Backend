@@ -12,5 +12,7 @@ import { ApplicationMaintenanceModule } from '../application-maintenance/applica
   ],
   controllers: [WordOrdenController],
   providers: [WordOrdenService],
+  exports:[MongooseModule]
+
 })
 export class WordOrdenModule {}

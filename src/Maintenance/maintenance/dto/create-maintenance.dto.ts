@@ -26,6 +26,10 @@ export class CreateMaintenanceDto {
     @IsNotEmpty()
     @IsMongoId()
     technicalId: string;
+
+    @IsNotEmpty()
+    @IsMongoId()
+    wordOrdenId :string;
   
     @IsNotEmpty()
     @IsString()

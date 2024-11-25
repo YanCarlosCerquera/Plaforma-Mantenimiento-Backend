@@ -38,6 +38,10 @@ export class RolService extends GenericService<Rol, CreateRolDto, UpdateRolDto> 
   async menu(id: string): Promise<object> {
     const data = await this.findOne(id);
   
+    if (!data || !data.views) {
+      throw new Error(`El rol con ID ${id} no tiene vistas asociadas.`);
+    }
+  
     const menu = Object.values(
       data.views.reduce((acc: any, view: any) => {
         const moduloName = view.moduloId.name;
@@ -63,5 +67,4 @@ export class RolService extends GenericService<Rol, CreateRolDto, UpdateRolDto> 
       menu,
     };
   }
-  
-}
+}  

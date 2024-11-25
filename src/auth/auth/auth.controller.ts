@@ -3,10 +3,28 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/Login';
 import { log } from 'console';
 import { Public } from './decorators/public.decorator';
+import { UsersService } from 'src/users/users.service';
+import { RegistroDto } from './dto/RegistroDto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService ,
+    private readonly userserive: UsersService
+  ) { }
+
+  
+  @Public( )
+  @Post('registro')
+  async registro(@Body() registroDto: RegistroDto) {
+try{
+  const registrado =    await this.authService.Registro(registroDto);
+return {messaje : "Registro Completo", registrado:registrado}
+
+} catch (error) {
+  console.error('Error en el registro:', error.message);
+  throw error;
+}
+}
 
   @Public()
   @Post('login')

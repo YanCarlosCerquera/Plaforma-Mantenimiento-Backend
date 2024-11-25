@@ -8,6 +8,7 @@ class SolicitudDto {
   solicitudId: Types.ObjectId;
 }
 
+
 export class CreateWordOrdenDto {
   @IsNotEmpty()
   radicado: string;
@@ -39,11 +40,7 @@ export class CreateWordOrdenDto {
   @IsNotEmpty()
   solicitud: SolicitudDto;
 
-  @IsMongoId()
-  @IsOptional()
-  Mantenimiento?: Types.ObjectId;
-
   @IsBoolean()
   @IsOptional()
-  StateOT?: boolean;
+  state?: boolean;
 }

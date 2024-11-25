@@ -10,4 +10,8 @@ export class MaintenanceController extends GenericController<Maintenance, Create
   constructor(private readonly maintenanceService: MaintenanceService){
     super(maintenanceService)
   }
+  @Get()
+  findAll() {
+    return this.maintenanceService.findAll();
+  }
 }
