@@ -1,24 +1,19 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { GenericService } from './generic.service';
+import { Controller, Get, Post, Body, Patch, Param, Delete, SetMetadata } from '@nestjs/common';
 import { Document } from 'mongoose';
-import { Roles } from 'src/auth/auth/decorators/rol.decorator';
+import { GenericService } from './generic.service';
+import { defaultRoles, Roles } from 'src/auth/auth/decorators/rol.decorator';
 
-export class GenericController<T extends Document, I, U,> {
-  private readonly listRoles: string
+@Roles(...defaultRoles)
+export class GenericController<T extends Document, I, U> {
 
-  constructor(private readonly genericService: GenericService<T, I, U>,
-    roles?: string
-  ) {
-    this.listRoles = roles
-  }
-  
+  constructor(private readonly genericService: GenericService<T, I, U>) {}
+
   @Post()
   create(@Body() createDto: I) {
     return this.genericService.create(createDto);
   }
 
   @Get()
-  @Roles()
   findAll() {
     return this.genericService.findAll();
   }
@@ -38,3 +33,4 @@ export class GenericController<T extends Document, I, U,> {
     return this.genericService.remove(id);
   }
 }
+

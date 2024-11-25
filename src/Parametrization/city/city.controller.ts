@@ -8,7 +8,7 @@ import { City } from './entities/city.entity';
 @Controller('city')
 export class CityController extends GenericController<City , CreateCityDto ,UpdateCityDto>{
   constructor(private readonly cityService: CityService) {
-    super(cityService)
+    super(cityService);
   }
 
 }
