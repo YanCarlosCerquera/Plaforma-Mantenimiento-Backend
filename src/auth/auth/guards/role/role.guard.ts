@@ -1,8 +1,8 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Observable } from 'rxjs';
 import { RolService } from 'src/Segurity/rol/rol.service';
 import { ROLES_KEY } from '../../decorators/rol.decorator';
+import { IS_PUBLIC_KEY } from '../../decorators/public.decorator';
 
 @Injectable()
 export class RoleGuard implements CanActivate {
@@ -12,8 +12,25 @@ export class RoleGuard implements CanActivate {
   ) { }
 
   async canActivate(context: ExecutionContext,): Promise<boolean> {
+    const isPublic = this.reflector.get<boolean>(
+      IS_PUBLIC_KEY,
+      context.getHandler(),
+    ) || this.reflector.get<boolean>(
+      IS_PUBLIC_KEY,
+      context.getClass(),
+    );
+
+    if (isPublic) {
+      return true; 
+    }
     try {
-      const requiredRoles = this.reflector.get<string[]>(ROLES_KEY, context.getHandler());
+      const requiredRoles = this.reflector.get<string[]>(
+        ROLES_KEY,
+        context.getHandler(),
+      ) || this.reflector.get<string[]>(
+        ROLES_KEY,
+        context.getClass(), 
+      );
 
       if (!requiredRoles || requiredRoles.length == 0) {
         return true;

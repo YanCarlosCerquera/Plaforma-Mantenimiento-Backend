@@ -22,7 +22,7 @@ export class CreateUserDto {
   email: string;
 
   @ApiProperty({ description: 'Número de teléfono del usuario' })
-  @IsPhoneNumber(null, { message: 'El número de teléfono debe ser válido.' })
+  //@IsPhoneNumber(null, { message: 'El número de teléfono debe ser válido.' })
   @IsNotEmpty({ message: 'El número de teléfono es obligatorio y no puede estar vacío.' })
   phone: string;
 
@@ -32,7 +32,7 @@ export class CreateUserDto {
   typeDocument: TypeDocuments;
 
   @ApiProperty({ description: 'Número de documento (ej. número de cédula, pasaporte)' })
-  @IsIdentityCard()	
+  //@IsIdentityCard()	
   @IsNotEmpty({ message: 'El número de documento es obligatorio y no puede estar vacío.' })
   numberDocument: string;
 
