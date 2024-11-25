@@ -16,6 +16,8 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
 import { join } from 'path';
 import { CategoriesModule } from './maintenance/categories/categories.module';
 import { AssetsModule } from './Maintenance/assets/assets.module';
+import { ApplicationMaintenanceModule } from './Maintenance/application-maintenance/application-maintenance.module';
+import { WordOrdenModule } from './Maintenance/word_orden/word_orden.module';
 
 @Module({
   imports: [
@@ -50,7 +52,9 @@ import { AssetsModule } from './Maintenance/assets/assets.module';
     CityModule,
     DependeceModule,
     CategoriesModule,
-    AssetsModule
+    AssetsModule,
+    ApplicationMaintenanceModule,
+    WordOrdenModule
   ],
   controllers: [AppController],
   providers: [AppService],
