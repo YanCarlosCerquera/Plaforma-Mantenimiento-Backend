@@ -50,4 +50,16 @@ import { GenericService } from 'src/Generic/generic.service';
         state: true
       }).exec()
     }
+    async findAll(): Promise<User[]> {
+      const users = await this.UserModel.find().exec();
+  
+      // Asegúrate de modificar la URL de la foto para que sea accesible desde el frontend
+      return users.map(user => {
+        if (user.photoUrl) {
+          user.photoUrl = `http://localhost:3000${user.photoUrl.replace(/\\/g, '/')}`;
+        }
+        return user;
+      });
+    }
+  
   }

@@ -14,7 +14,7 @@ export class CreateUserDto {
   @ApiProperty({ description: 'Imagen de perfil del usuario' })
   @IsString()
   @IsOptional()
-  photo?: string   
+  photoUrl?: string   
 
   @ApiProperty({ description: 'Correo electrónico del usuario' })
   @IsEmail({}, { message: 'El correo electrónico debe ser válido.' })
@@ -53,6 +53,5 @@ export class CreateUserDto {
 
   @ApiProperty({ description: 'Estado del usuario (activo o no, opcional)', required: false })
   @IsOptional()
-  @IsBoolean({ message: 'El estado debe ser un valor booleano (true o false).' })
   state?: boolean;
 }

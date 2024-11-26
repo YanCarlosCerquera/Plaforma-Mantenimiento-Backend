@@ -8,7 +8,7 @@ import { User } from 'src/users/entities/user.entity';
 @Schema({ timestamps: true }) 
 export class OrdenesTrabajo extends Document {
 
-  @Prop({ type: String, required: true })
+  @Prop({ type: String, required: true , unique:true})
   radicado: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
@@ -24,11 +24,11 @@ export class OrdenesTrabajo extends Document {
   fechaFin: Date;
 
   @Prop({ type: String, 
-  enum: ['alta', 'media', 'baja'],
+  enum: ['alta', 'media', 'baja','Sin Terminar'],
 required: true })
   prioridad: string;
 
-  @Prop({ type: Object, required: true  , ref:'MaintenanceRequest'})
+  @Prop({ type: Object, required: true  , ref:'MaintenanceRequest' , unique:true})
   solicitud:{
     solicirud: MaintenanceRequest,
   };

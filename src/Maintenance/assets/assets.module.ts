@@ -8,5 +8,6 @@ import { Assets, AssetsSchema } from './entities/asset.entity';
   imports: [MongooseModule.forFeature([{ name: Assets.name, schema: AssetsSchema }])],
   controllers: [AssetsController],
   providers: [AssetsService],
+  exports:[AssetsService, MongooseModule]
 })
 export class AssetsModule {}

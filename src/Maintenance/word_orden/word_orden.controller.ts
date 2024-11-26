@@ -10,8 +10,14 @@ export class WordOrdenController extends GenericController <OrdenesTrabajo , Cre
   constructor(private readonly wordOrdenService: WordOrdenService) {
     super(wordOrdenService);
   }
-  @Get('detalles')
+  @Get()
   findAllWithDetails() {
     return this.wordOrdenService.findAllWithDetails();
   }
+  @Post('update-expired-orders')
+  async updateExpiredOrders(): Promise<string> {
+    await this.wordOrdenService.updateExpiredOrders(); 
+    return 'Órdenes vencidas actualizadas correctamente';
+  }
+
 }

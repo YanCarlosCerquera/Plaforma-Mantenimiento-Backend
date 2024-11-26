@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import mongoose, { Document, HydratedDocument } from "mongoose";
+import mongoose, { Document } from "mongoose";
 import { Positions } from "src/enum/position.enum";
 import { TypeDocuments } from "src/enum/typeDocument.enum";
 import { Rol } from "src/Segurity/rol/entities/rol.entity";
@@ -7,13 +7,13 @@ import { Rol } from "src/Segurity/rol/entities/rol.entity";
 export type DocumentUser = User & Document;
 
 @Schema({timestamps : true})
-export class User extends Document{
+export class User extends Document {
     @Prop({required: true})
     name: string
 
-    @Prop()
-    photo?: string   
-
+    @Prop({ required: false })
+    photoUrl?: string | null;
+    
     @Prop({required: true})
     email: string
 
@@ -38,8 +38,9 @@ export class User extends Document{
     @Prop({ required: false })
     tokenReference?: string; 
 
-    @Prop()
-    state?: boolean
+    @Prop({required: true, default: true})
+    state: boolean; // This will allow state to be either true or false
+    
 }
 
 export const SchemaUser = SchemaFactory.createForClass(User);

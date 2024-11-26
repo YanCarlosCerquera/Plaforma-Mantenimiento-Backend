@@ -20,10 +20,12 @@ import { ApplicationMaintenanceModule } from './Maintenance/application-maintena
 import { WordOrdenModule } from './Maintenance/word_orden/word_orden.module';
 import { MaintenanceModule } from './Maintenance/maintenance/maintenance.module';
 import { ActionLogModule } from './parametrization/action-log/action-log.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
     MongooseModule.forRoot('mongodb://localhost:27017/sena'),
+    ScheduleModule.forRoot(),
     MailerModule.forRoot({
       transport: {
         host: 'smtp.gmail.com',

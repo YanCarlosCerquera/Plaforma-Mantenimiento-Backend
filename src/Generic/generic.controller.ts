@@ -9,7 +9,7 @@ export class GenericController<T extends Document, I, U> {
   constructor(private readonly genericService: GenericService<T, I, U>) {}
 
   @Post()
-  create(@Body() createDto: I) {
+  create(@Body() createDto: I, file?: Express.Multer.File): Promise<T> {
     return this.genericService.create(createDto);
   }
 
