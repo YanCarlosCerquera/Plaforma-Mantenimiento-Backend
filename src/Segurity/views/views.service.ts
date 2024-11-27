@@ -20,4 +20,8 @@ export class ViewsService extends GenericService<View, CreateViewDto, UpdateView
   async findAll(): Promise <View[]> {
     return await this.viewModel.find().populate('moduloId', 'name').exec()
   }
+
+  async findByRoute(prefix: string): Promise <View[]> {
+    return await this.viewModel.find({ route: new RegExp(`^${prefix}`) }).populate('moduloId', 'name').exec()
+  }
 }

@@ -1,16 +1,12 @@
 import { Model } from 'mongoose';
 import { Document } from 'mongoose';
-import { WordOrdenService } from 'src/Maintenance/word_orden/word_orden.service';
-export class GenericService <T extends Document, I, U> {
-  private Validator: WordOrdenService
-  constructor(private readonly model: Model<T> ,)
-   {
-    
-  }
+import { logger } from 'src/Parametrization/action-log/winston/action-log.winston';
+export class GenericService<T extends Document, I, U> {
+  constructor(private readonly model: Model<T>,) { }
 
   async create(createDto: I): Promise<T> {
     const createdItem = new this.model(createDto);
-    return await createdItem.save(); 
+    return await createdItem.save();
   }
 
   async findAll(): Promise<T[]> {

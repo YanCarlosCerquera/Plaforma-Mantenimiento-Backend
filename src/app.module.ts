@@ -27,6 +27,7 @@ import { WorkReportModule } from './Maintenance/work_report/work_report.module';
   imports: [
     MongooseModule.forRoot('mongodb://localhost:27017/sena'),
     ScheduleModule.forRoot(),
+    MongooseModule.forRoot('mongodb://localhost:4040/sena'),
     MailerModule.forRoot({
       transport: {
         host: 'smtp.gmail.com',

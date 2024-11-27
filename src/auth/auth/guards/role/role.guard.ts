@@ -21,7 +21,7 @@ export class RoleGuard implements CanActivate {
     );
 
     if (isPublic) {
-      return true; 
+      return true;
     }
     try {
       const requiredRoles = this.reflector.get<string[]>(
@@ -29,7 +29,7 @@ export class RoleGuard implements CanActivate {
         context.getHandler(),
       ) || this.reflector.get<string[]>(
         ROLES_KEY,
-        context.getClass(), 
+        context.getClass(),
       );
 
       if (!requiredRoles || requiredRoles.length == 0) {
@@ -50,7 +50,7 @@ export class RoleGuard implements CanActivate {
       }
 
       return requiredRoles.includes(userRole.name);
-    }catch{
+    } catch {
       throw new UnauthorizedException();
     }
   }

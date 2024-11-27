@@ -7,27 +7,30 @@ import * as path from 'path';
 import { User } from './entities/user.entity';
 import { GenericController } from 'src/Generic/generic.controller';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { Log } from 'src/auth/auth/decorators/log.decorator';
+
 
 @Controller('users')
-export class UsersController extends GenericController<User , CreateUserDto , UpdateUserDto>{
-  constructor(private readonly usersService: UsersService ) {
+@Log('Usuarios', '/usu')
+export class UsersController extends GenericController<User, CreateUserDto, UpdateUserDto> {
+  constructor(private readonly usersService: UsersService) {
     super(usersService)
   }
 
   @Public()
   @Post()
   @UseInterceptors(FileInterceptor('photo', {
-    dest: './uploads',  
+    dest: './uploads',
   }))
   async create(@Body() createDto: CreateUserDto, @UploadedFile() file: Express.Multer.File) {
     if (file) {
-      createDto.photoUrl = path.join('/uploads', file.filename);  
+      createDto.photoUrl = path.join('/uploads', file.filename);
     }
     return this.usersService.create(createDto);
   }
 
-@Get()
-async findAll(){
-  return await this.usersService.findAll()
+  @Get()
+  async findAll() {
+    return await this.usersService.findAll()
+  }
 }
-} 

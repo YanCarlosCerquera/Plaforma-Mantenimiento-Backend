@@ -8,5 +8,6 @@ import { SchemaView, View } from './entities/view.entity';
   imports: [MongooseModule.forFeature([{ name: View.name, schema: SchemaView}])],
   controllers: [ViewsController],
   providers: [ViewsService],
+  exports: [ViewsService],
 })
 export class ViewsModule {}
