@@ -11,6 +11,7 @@ export class CreateApplicationMaintenanceDto {
   @IsPhoneNumber(null, { message: 'El número de teléfono del solicitante debe ser válido.' })
   requesterPhone: string;
 
+  trackingNumber?:string;
 
   @IsString()
   @IsNotEmpty({ message: 'El número de serie es obligatorio' })

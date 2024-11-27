@@ -21,6 +21,7 @@ import { WordOrdenModule } from './Maintenance/word_orden/word_orden.module';
 import { MaintenanceModule } from './Maintenance/maintenance/maintenance.module';
 import { ActionLogModule } from './parametrization/action-log/action-log.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { WorkReportModule } from './Maintenance/work_report/work_report.module';
 
 @Module({
   imports: [
@@ -60,7 +61,8 @@ import { ScheduleModule } from '@nestjs/schedule';
     ApplicationMaintenanceModule,
     WordOrdenModule,
     MaintenanceModule,
-    ActionLogModule
+    ActionLogModule,
+    WorkReportModule
   ],
   controllers: [AppController],
   providers: [AppService],

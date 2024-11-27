@@ -17,7 +17,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
     super(OrdenModel);
   }
 
-  @Cron('10 * * * * *')
+  @Cron('00 * * * * *')
   async updateExpiredOrders(): Promise<void> {
     const now = new Date();
 
@@ -37,7 +37,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
 
   async create(createDto: CreateWordOrdenDto): Promise<OrdenesTrabajo> {
     await this.validateWorkOrder(createDto);
-
+    await this.validateDates(createDto)
     const createdItem = new this.OrdenModel(createDto);
     const savedItem = await createdItem.save();
     await this.maintenanceModel.findByIdAndUpdate(createDto.solicitud.solicitudId, { workOrderStatus: true });
@@ -58,10 +58,9 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
         throw new BadRequestException('La solicitud de mantenimiento no existe');
       }
   
-      // Validar que la solicitud no tenga ya una orden de trabajo asignada
       const existingWorkOrderForSolicitud = await this.OrdenModel.findOne({
         'solicitud.solicitudId': dto.solicitud.solicitudId,
-        state: true, // Solo consideramos las órdenes de trabajo activas
+        state: true, 
       });
   
       if (existingWorkOrderForSolicitud) {
@@ -69,7 +68,6 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       }
     }
   
-    // Validar la unicidad del campo 'radicado'
     if (dto.radicado) {
       const existingWorkOrderForRadicado = await this.OrdenModel.findOne({
         radicado: dto.radicado,
