@@ -16,6 +16,9 @@ export class ActionLog extends Document{
 
     @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Modulo', required: true })
     moduloId: Modulo
+
+    @Prop()
+    state?: boolean
 }
 export type DocumentActionLog = Document & ActionLog
 export const SchemaActionLog = SchemaFactory.createForClass(ActionLog)
