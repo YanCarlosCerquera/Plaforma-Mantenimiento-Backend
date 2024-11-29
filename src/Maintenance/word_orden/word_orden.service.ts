@@ -84,6 +84,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
     }
   }
   
+  
 
   async findAllWithDetails(): Promise<OrdenesTrabajo[]> {
     return this.OrdenModel.find({ })

@@ -34,12 +34,13 @@ export class User extends Document {
 
     @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Rol'})
     assignedRol?: Rol
-
-    @Prop({ required: false })
-    tokenReference?: string; 
+@Prop()
+    resetCode?: string;
+    @Prop()
+  resetCodeExpiresAt?: Date;
 
     @Prop({required: true, default: true})
-    state: boolean; // This will allow state to be either true or false
+    state: false; 
     
 }
 

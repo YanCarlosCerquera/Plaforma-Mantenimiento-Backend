@@ -5,7 +5,7 @@ import { UsersService } from 'src/users/users.service';
 import { RolService } from 'src/Segurity/rol/rol.service';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/Login';
-import { hash } from 'crypto';
+import { hash, randomBytes } from 'crypto';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from 'src/users/entities/user.entity';
 import { Model } from 'mongoose';
@@ -80,142 +80,114 @@ export class AuthService {
 
   }
 
-  async iniciarRecuperacionContrasena(typeDocument: string, numberDocument: string): Promise<void> {
+  async iniciarRecuperacionContrasena(typeDocument: string, numberDocument: string): Promise<string> {
     const user = await this.userService.findByDocumento(typeDocument, numberDocument);
-
+    console.log(user);
+    
+  
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
     }
-
-    const token = this.jwtService.sign(
-      { sub: user._id.toString() },
-      { expiresIn: '15m' }
-    );
-
-    user.tokenReference = token;
+  
+    const code = randomBytes(3).toString('hex');  // Generates a random 6 character code
+    user.resetCode = code;  // Save the code to the user model
+    user.resetCodeExpiresAt = new Date(Date.now() + 15 * 60 * 1000);  // Expiry time: 15 minutes
     await user.save();
-
-    const urlRecuperacion = `http://localhost:3000/reset-password/${user._id}`;
+  
     const htmlContent = `
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Recuperación de Cuenta</title>
-  <style>
-    body {
-      font-family: 'Arial', sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #f9f9f9;
-      color: #333;
-      line-height: 1.6;
-    }
-    .container {
-      max-width: 580px;
-      margin: 30px auto;
-      background: #ffffff;
-      padding: 25px;
-      border-radius: 10px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
-    .header {
-      text-align: center;
-      border-bottom: 2px solid #eaeaea;
-      padding-bottom: 15px;
-      margin-bottom: 20px;
-    }
-    .header img {
-      max-width: 120px;
-      margin-bottom: 10px;
-    }
-    .header h1 {
-      font-size: 22px;
-      color: #0056b3;
-    }
-    .content {
-      padding: 15px;
-    }
-    .content p {
-      margin: 15px 0;
-    }
-    .content a {
-      display: inline-block;
-      margin: 20px 0;
-      padding: 12px 20px;
-      background-color: #0056b3;
-      color: #ffffff;
-      text-decoration: none;
-      font-weight: bold;
-      border-radius: 6px;
-      text-align: center;
-    }
-    .content a:hover {
-      background-color: #003d82;
-    }
-    .footer {
-      text-align: center;
-      font-size: 12px;
-      color: #666666;
-      margin-top: 20px;
-      border-top: 1px solid #eaeaea;
-      padding-top: 15px;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <img src="https://educacionygestion.com/wp-content/uploads/2017/12/certificado-sena.jpg" alt="SENA Logo">
-      <h1>Recuperación de Cuenta</h1>
-    </div>
-    <div class="content">
-      <p>Estimado(a) <strong>${user.name}</strong>,</p>
-      <p>
-        Hemos recibido tu solicitud para restablecer la contraseña de tu cuenta en el SENA. Por favor, haz clic en el botón a continuación para completar el proceso:
-      </p>
-      <a href="${urlRecuperacion}" target="_blank">Restablecer Contraseña</a>
-      <p>Nota: Este enlace será válido solo por los próximos <strong>15 minutos</strong>.</p>
-      <p>Gracias por confiar en el SENA. Estamos comprometidos con brindarte un servicio oportuno y eficaz.</p>
-    </div>
-    <div class="footer">
-      <p>Coordinación Académica Sede Industria</p>
-      <p>Neiva - Huila</p>
-    </div>
-  </div>
-</body>
-</html>
-
-`;
-
-
-
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Recuperación de Contraseña</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f8f8; border-radius: 5px; overflow: hidden;">
+            <tr>
+                <td style="padding: 30px 20px; text-align: center; background-color: #39a900;">
+                    <h1 style="color: #ffffff; margin: 0;">Recuperación de Contraseña</h1>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 30px 20px;">
+                    <p style="margin-bottom: 20px;">Estimado(a) ${user.name},</p>
+                    <p style="margin-bottom: 20px;">Has solicitado restablecer tu contraseña. Utiliza el siguiente código para completar el proceso:</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <div style="display: inline-block; padding: 15px 30px; background-color: #39a900; border-radius: 5px; animation: pulse 2s infinite;">
+                            <span style="font-size: 24px; font-weight: bold; color: #ffffff; letter-spacing: 5px;">${code}</span>
+                        </div>
+                    </div>
+                    <p style="margin-bottom: 20px; font-weight: bold;">Este código expirará en 15 minutos.</p>
+                    <p style="margin-bottom: 20px;">Si no has solicitado este cambio, por favor ignora este correo o contacta a soporte técnico.</p>
+                    <p>Gracias,<br>El equipo de Tecnoparque Nodo Neiva</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 20px; text-align: center; background-color: #f0f0f0; font-size: 12px; color: #666;">
+                    <p>&copy; 2023 Tecnoparque Nodo Neiva. Todos los derechos reservados.</p>
+                </td>
+            </tr>
+        </table>
+        <style>
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
+            }
+        </style>
+    </body>
+    </html>
+    `;  
+  
     await this.mailerService.sendMail({
       to: user.email,
       subject: 'Recuperación de Contraseña',
       html: htmlContent,
     });
+  
+    return user._id.toString(); 
   }
+  
 
-
-
-  async resetearContrasena(userId: string, nuevaContrasena: string): Promise<void> {
+  async resetearContrasena(userId: string, code: string, nuevaContrasena: string): Promise<void> {
     const user = await this.userService.findOne(userId);
 
-    if (!user || !user.tokenReference) {
-      throw new UnauthorizedException('No se encontró un proceso de recuperación válido');
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
     }
 
-    try {
-      this.jwtService.verify(user.tokenReference);
-
-      const hashedPassword = await bcrypt.hash(nuevaContrasena, 10);
-      user.password = hashedPassword;
-      user.tokenReference = null;
-      await user.save();
-    } catch (error) {
-      throw new UnauthorizedException('El token es inválido o ha expirado');
+    if (user.resetCode !== code) {
+      throw new UnauthorizedException('Código incorrecto');
     }
+
+    if (user.resetCodeExpiresAt < new Date()) {
+      throw new UnauthorizedException('El código ha expirado');
+    }
+
+    const hashedPassword = await bcrypt.hash(nuevaContrasena, 10);
+    user.password = hashedPassword;
+    user.replaceOne = null;  
+    user.resetCode = null;
+    user.resetCodeExpiresAt = null; 
+    await user.save();
+
   }
-}  
+  async verificarCodigoRecuperacion(userId: string, code: string): Promise<boolean> {
+    const user = await this.userService.findOne(userId);
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    if (user.resetCode !== code) {
+      return false;
+    }
+
+    if (user.resetCodeExpiresAt < new Date()) {
+      throw new UnauthorizedException('El código ha expirado');
+    }
+
+    return true;
+  }
+}

@@ -8,6 +8,8 @@ import { jwtConstant } from './auth.jwtConstants';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from './guards/auth/auth.guard';
 import { RoleGuard } from './guards/role/role.guard';
+import { MongooseModule } from '@nestjs/mongoose';
+import { PasswordResetToken, PasswordResetTokenSchema } from './PasswordResetToken';
 
 @Module({
   imports: [
@@ -17,17 +19,20 @@ import { RoleGuard } from './guards/role/role.guard';
       secret: jwtConstant.secret,
       signOptions: { expiresIn: '60m' },
     }),
-  ],
+    MongooseModule.forFeature([
+      { name: PasswordResetToken.name, schema: PasswordResetTokenSchema }
+    ]) ],
+  
   controllers: [AuthController],
   providers: [AuthService, 
-    {
+    /* {
       provide: APP_GUARD,
       useClass: AuthGuard, 
-    },
+    },|
     {
       provide: APP_GUARD,
       useClass: RoleGuard, 
-    },
+    }, */
   ],
 })
 export class AuthModule {}

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Body, UnauthorizedException, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/Login';
 import { Public } from './decorators/public.decorator';
@@ -11,27 +11,24 @@ export class AuthController {
     private readonly userserive: UsersService
   ) { }
 
-  
-  @Public( )
+  @Public()
   @Post('registro')
   async registro(@Body() registroDto: RegistroDto) {
-try{
-  const registrado =    await this.authService.Registro(registroDto);
-return {messaje : "Registro Completo", registrado:registrado}
-
-} catch (error) {
-  console.error('Error en el registro:', error.message);
-  throw error;
-}
-}
+    try {
+      const registrado = await this.authService.Registro(registroDto);
+      return { message: "Registro Completo", registrado: registrado };
+    } catch (error) {
+      console.error('Error en el registro:', error.message);
+      throw error;
+    }
+  }
 
   @Public()
   @Post('login')
   async login(@Body() authDto: LoginDto) {
     try {
-      const resul = await this.authService.login(authDto);
-
-      return { messaje: "Bienvenido pepeito", resul: resul }
+      const result = await this.authService.login(authDto);
+      return { message: "Bienvenido", result: result };
     } catch (error) {
       console.error('Error en el login:', error.message);
       throw error;
@@ -45,21 +42,43 @@ return {messaje : "Registro Completo", registrado:registrado}
     @Body('numberDocument') numberDocument: string
   ) {
     try {
-      await this.authService.iniciarRecuperacionContrasena(typeDocument, numberDocument);
-      return { mensaje: 'Se ha enviado un correo con las instrucciones para recuperar la contraseña' };
+      const userId = await this.authService.iniciarRecuperacionContrasena(typeDocument, numberDocument);
+      return { 
+        message: 'Se ha enviado un correo con las instrucciones para recuperar la contraseña',
+        userId: userId 
+      };
     } catch (error) {
       throw new UnauthorizedException('No se pudo iniciar el proceso de recuperación de contraseña');
     }
   }
-
   @Public()
   @Post('reset-password')
   async resetearContrasena(
     @Body('userId') userId: string,
+    @Body('code') code: string,
     @Body('nuevaContrasena') nuevaContrasena: string
-  ): Promise<{ mensaje: string }> {
-    await this.authService.resetearContrasena(userId, nuevaContrasena);
-    return { mensaje: 'Contraseña actualizada correctamente' };
-
+  ): Promise<{ message: string }> {
+    await this.authService.resetearContrasena(userId, code, nuevaContrasena);
+    return { message: 'Contraseña actualizada correctamente' };
   }
+  @Public()
+  @Post('verify-code')
+  async verificarCodigo(
+    @Body('userId') userId: string,
+    @Body('code') code: string
+  ) {
+    try {
+      const isValid = await this.authService.verificarCodigoRecuperacion(userId, code);
+      return { isValid };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw new NotFoundException(error.message);
+      }
+      if (error instanceof UnauthorizedException) {
+        throw new UnauthorizedException(error.message);
+      }
+      throw new InternalServerErrorException('Error al verificar el código');
+    }
+  }
+
 }

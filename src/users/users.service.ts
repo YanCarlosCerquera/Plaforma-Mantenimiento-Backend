@@ -50,6 +50,15 @@ import { GenericService } from 'src/Generic/generic.service';
         state: true
       }).exec()
     }
+async findOne(id: string): Promise<User> {
+  const user = await this.UserModel.findById(id).populate({
+    path:'assignedRol',
+    select:'name'
+  }).exec();
+
+  return user;
+}
+
     async findAll(): Promise<User[]> {
       const users = await this.UserModel.find().populate({
         path:'assignedRol',

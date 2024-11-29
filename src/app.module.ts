@@ -38,7 +38,7 @@ import { WorkReportModule } from './Maintenance/work_report/work_report.module';
         },
       },
       defaults: {
-        from: '"No Reply" <xzenzi259@gmail.com>',
+        from: '<xzenzi259@gmail.com>',
       },
       template: {
         dir: join(__dirname, 'templates'),

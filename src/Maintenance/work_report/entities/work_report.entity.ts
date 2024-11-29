@@ -6,19 +6,19 @@ import { OrdenesTrabajo } from "src/Maintenance/word_orden/entities/word_orden.e
 export class WorkReport extends Document {
 
   
-    @Prop({ required: true })
+    @Prop({ })
     costs: number; 
   
-    @Prop({ required: true })
+    @Prop({ })
     hours: number;
   
-    @Prop({ required: true }) 
+    @Prop({}) 
     responses: string;
   
     @Prop()
     observation: string;
   
-    @Prop({ required: true })
+    @Prop({ })
     workDone: string; 
 
     @Prop({ type: Types.ObjectId, ref: 'OrdenesTrabajo', required: true })
