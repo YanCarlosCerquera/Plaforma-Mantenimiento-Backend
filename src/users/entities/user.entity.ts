@@ -14,7 +14,7 @@ export class User extends Document {
     @Prop({ required: false })
     photoUrl?: string | null;
     
-    @Prop({required: true})
+    @Prop({required: true, unique: true})
     email: string
 
     @Prop({required: true})
@@ -39,8 +39,9 @@ export class User extends Document {
     tokenReference?: string; 
 
     @Prop({required: true, default: true})
-    state: boolean; // This will allow state to be either true or false
+    state: boolean; 
     
 }
 
-export const SchemaUser = SchemaFactory.createForClass(User);
+export const SchemaUser = SchemaFactory.createForClass(User)
+SchemaUser.index({ typeDocument: 1, numberDocument: 1 }, { unique: true });

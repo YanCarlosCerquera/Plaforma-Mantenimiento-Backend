@@ -22,30 +22,38 @@ import { MaintenanceModule } from './Maintenance/maintenance/maintenance.module'
 import { ActionLogModule } from './parametrization/action-log/action-log.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { WorkReportModule } from './Maintenance/work_report/work_report.module';
+import { ConfigModule } from './parametrization/config/config.module';
+import { ConfigService } from './parametrization/config/config.service';
 
 @Module({
   imports: [
-    MongooseModule.forRoot('mongodb://localhost:27017/sena'),
     ScheduleModule.forRoot(),
     MongooseModule.forRoot('mongodb://localhost:4040/sena'),
-    MailerModule.forRoot({
-      transport: {
-        host: 'smtp.gmail.com',
-        secure: false,
-        auth: {
-          user: 'xzenzi259@gmail.com',
-          pass: 'zpbj cngz oxch nthe',
-        },
-      },
-      defaults: {
-        from: '"No Reply" <xzenzi259@gmail.com>',
-      },
-      template: {
-        dir: join(__dirname, 'templates'),
-        adapter: new HandlebarsAdapter(),
-        options: {
-          strict: true,
-        },
+    MailerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => {
+        const emailConfig = await configService.findEmailConfig();
+        return {
+          transport: {
+            host: emailConfig.host,
+            secure: false,
+            auth: {
+              user: emailConfig.user,
+              pass: emailConfig.password,
+            },
+          },
+          defaults: {
+            from: `"No Reply" <${emailConfig.defaults}>`,
+          },
+          template: {
+            dir: join(__dirname, 'templates'),
+            adapter: new HandlebarsAdapter(),
+            options: {
+              strict: true,
+            },
+          },
+        };
       },
     }),
     UsersModule,
@@ -63,7 +71,8 @@ import { WorkReportModule } from './Maintenance/work_report/work_report.module';
     WordOrdenModule,
     MaintenanceModule,
     ActionLogModule,
-    WorkReportModule
+    WorkReportModule,
+    ConfigModule
   ],
   controllers: [AppController],
   providers: [AppService],
