@@ -16,8 +16,8 @@ export class CreateUserDto {
 
   @IsEmail({}, { message: 'El correo electrónico debe ser válido.' })
   @Matches(
-    /@(soy\.sena\.edu\.co|sena\.co)$/i, 
-    { message: 'El correo debe pertenecer al dominio @soy.sena.edu.co o @sena.co.' }
+    /@(soy\.sena\.edu\.co|sena\.edu\.co)$/i, 
+    { message: 'El correo debe pertenecer al dominio @soy.sena.edu.co o @sena.edu.co.' }
   )
   @IsNotEmpty({ message: 'El correo electrónico es obligatorio y no puede estar vacío.' })
   email: string;
