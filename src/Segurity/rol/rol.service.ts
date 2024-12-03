@@ -67,4 +67,8 @@ export class RolService extends GenericService<Rol, CreateRolDto, UpdateRolDto> 
       menu,
     };
   }
+
+  async findName(name: string): Promise<Rol> {
+    return await this.rolModel.findOne({ name: name })
+  }
 }  

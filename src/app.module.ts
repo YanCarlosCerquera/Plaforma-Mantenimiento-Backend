@@ -49,36 +49,44 @@ import { WssModule } from './Maintenance/application-maintenance/wss.module';
       defaults: {
         from: '<xzenzi259@gmail.com>',
       },
-      template: {
-        dir: join(__dirname, 'templates'),
-        adapter: new HandlebarsAdapter(),
-        options: {
-          strict: true,
-        },
-      },
-    }),
-    SmsModule,
-    UsersModule,
-    ModulosModule,
-    WssModule,
-    RolModule,
-    ViewsModule,
-    HttpModule,
-    AuthModule,
-    DepartamentsModule,
-    TrainingCentersModule,
-    CityModule,
-    DependeceModule,
-    CategoriesModule,
-    AssetsModule,
-    ApplicationMaintenanceModule,
-    WordOrdenModule,
-    MaintenanceModule,
-    ActionLogModule,
-    WorkReportModule
-  ],
-  controllers: [AppController],
-  providers: [AppService , InfobipService],
-})
-export class AppModule {}
-
+     
+          template: {
+            dir: join(__dirname, 'templates'),
+            adapter: new HandlebarsAdapter(),
+            options: {
+              strict: true,
+            },
+          },
+        }),
+    
+        HttpModule,
+    
+        // Módulos personalizados
+        // Seguridad
+        UsersModule,
+        ModulosModule,
+        RolModule,
+        ViewsModule,
+        AuthModule,
+    
+        // Parametrización
+        DepartamentsModule,
+        TrainingCentersModule,
+        CityModule,
+        DependeceModule,
+        ActionLogModule,
+    
+        // Mantenimiento
+        CategoriesModule,
+        AssetsModule,
+        ApplicationMaintenanceModule,
+        WordOrdenModule,
+        MaintenanceModule,
+        WorkReportModule,
+        SmsModule,
+        WssModule,
+      ],
+      controllers: [AppController],
+      providers: [AppService, InfobipService],
+    })
+    export class AppModule {}

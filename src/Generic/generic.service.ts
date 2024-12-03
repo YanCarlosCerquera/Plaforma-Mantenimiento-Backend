@@ -1,6 +1,5 @@
 import { Model } from 'mongoose';
 import { Document } from 'mongoose';
-import { logger } from 'src/Parametrization/action-log/winston/action-log.winston';
 export class GenericService<T extends Document, I, U> {
   constructor(private readonly model: Model<T>,) { }
 

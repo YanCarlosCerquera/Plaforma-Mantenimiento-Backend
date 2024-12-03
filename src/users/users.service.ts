@@ -6,11 +6,13 @@
   import { User } from './entities/user.entity';
   import { Model } from 'mongoose';
 import { GenericService } from 'src/Generic/generic.service';
+import { RolService } from 'src/Segurity/rol/rol.service';
 
   @Injectable()
   export class UsersService extends GenericService<User, CreateUserDto, UpdateUserDto	>{
 
-    constructor(@InjectModel(User.name) private UserModel: Model<User>){
+    constructor(@InjectModel(User.name) private UserModel: Model<User>,
+    private rolService: RolService){
       super(UserModel)
     }
 
@@ -59,6 +61,8 @@ async findOne(id: string): Promise<User> {
   return user;
 }
 
+
+
     async findAll(): Promise<User[]> {
       const users = await this.UserModel.find().populate({
         path:'assignedRol',
@@ -71,6 +75,14 @@ async findOne(id: string): Promise<User> {
         }
         return user;
       });
+    }
+
+    async findAllTecnhnical(): Promise<User[]> {
+      const rol = await this.rolService.findName('técnico')
+      return await this.UserModel.find({ assignedRol: rol }).populate({
+        path:'assignedRol',
+        select:'name'
+      }).exec();
     }
   
   }

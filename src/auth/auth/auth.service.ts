@@ -37,7 +37,7 @@ export class AuthService {
     const Hasst = 10;
     const hashedPassword = await bcrypt.hash(password, Hasst);
   
-    const idRolTemporal = '6740f7be43fcab2f5e011151';
+    const idRolTemporal = '674894abd8a183de563a2f48';
 
   const rolId = assignedRol ? assignedRol._id : idRolTemporal;
 
