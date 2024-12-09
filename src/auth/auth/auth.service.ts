@@ -41,16 +41,17 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(password, 10);
   
     const defaultRolId = '674894abd8a183de563a2f48';
-    const defaultCargo = 'Developer';
-    const userRol = assignedRol
-      ? { Rolid: assignedRol.Rolid || defaultRolId, enum: assignedRol.enum || defaultCargo }
-      : { Rolid: defaultRolId, enum: defaultCargo };
+    let rolId;
+    if (assignedRol && assignedRol) {
+      rolId = assignedRol;
+    } else {
+      rolId = defaultRolId;
+    }
   
     const userToCreate = {
       ...registroDto,
       password: hashedPassword,
-      state: true,
-      assignedRol: userRol,
+      assignedRol: defaultRolId,
     };
   
     const newUser = new this.userModel(userToCreate);
@@ -73,8 +74,8 @@ export class AuthService {
     }
   
     let menu ={}
-    if (user.assignedRol && user.assignedRol.Rolid) {
-      const rolId = user.assignedRol.Rolid.toString();
+    if (user.assignedRol && user.assignedRol) {
+      const rolId = user.assignedRol.toString();
       menu = await this.rolService.menu(rolId);
     } else {
       console.warn(`User ${user._id} does not have an assigned role or role ID.`);
@@ -147,8 +148,8 @@ export class AuthService {
     </html>
     `;  
   
-    await this.enviarNotificacionSMS(user, user.phone, user.name, false);
-    await this.mailerService.sendMail({
+/*     await this.enviarNotificacionSMS(user, user.phone, user.name, false);
+ */    await this.mailerService.sendMail({
       to: user.email,
       subject: 'Recuperación de Contraseña',
       html: htmlContent,

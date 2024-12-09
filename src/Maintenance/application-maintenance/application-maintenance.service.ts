@@ -39,7 +39,14 @@ export class ApplicationMaintenanceService extends GenericService<MaintenanceReq
       const userToNotify = await this.findUserToNotify(savedItem.serialNumber);
       if (userToNotify) {
 /*         await this.enviarNotificacionSMS(savedItem, userToNotify.phoneNumber, userToNotify.name, false);
- */        await this.enviarNotificacionWhatsApp(savedItem, userToNotify.phoneNumber, userToNotify.name, true);
+ */        await this.enviarNotificacionWhatsApp(savedItem, userToNotify.phoneNumber, userToNotify.name, true
+
+
+
+
+
+  
+ );
         await this.enviarNotificacionTelegram(savedItem, userToNotify.name);
 
         if (savedItem.requesterPhone) {

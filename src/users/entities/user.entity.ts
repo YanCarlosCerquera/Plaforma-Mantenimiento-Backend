@@ -27,12 +27,12 @@ export class User extends Document {
 
   @Prop({
     required: true,
-    validate: {
+    /* validate: {
       validator: function (v: string) {
         return /^57\d{7,14}$/.test(v);
       },
       message: 'El número de teléfono debe ser válido y seguir el formato internacional, como +5736615144.',
-    },
+    }, */
   })
   phone: string
 
@@ -53,11 +53,8 @@ export class User extends Document {
   @Prop({ enum: Object.values(Positions) })
   assignedPosition?: Positions
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Rol' })
-  assignedRol?: {
-      Rolid: Rol;
-      enum: string;
-  };  
+  @Prop({ type: mongoose.Types.ObjectId, ref: 'Rol' })
+  assignedRol: mongoose.Types.ObjectId; 
 
   @Prop()
   resetCode?: string;
