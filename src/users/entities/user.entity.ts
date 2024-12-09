@@ -11,8 +11,8 @@ export class User extends Document {
     @Prop({ required: true })
     name: string;
 
-  @Prop({ required: false })
-  photoUrl?: string | null;
+    @Prop({ required: false })
+    photoUrl?: string | null;
 
     @Prop({
         required: true,
@@ -51,9 +51,12 @@ export class User extends Document {
 
     @Prop({ enum: Object.values(Positions) })
     assignedPosition?: Positions;
-
+    
     @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Rol' })
-    assignedRol?: Rol;
+    assignedRol?: {
+        Rolid: Rol;
+        enum: string;
+    };
 
     @Prop(
         {
@@ -90,14 +93,14 @@ export const SchemaUser = SchemaFactory.createForClass(User);
 SchemaUser.index({ typeDocument: 1, numberDocument: 1 }, { unique: true });
 
 SchemaUser.pre('findOneAndUpdate', async function (next) {
-    const update = this.getUpdate(); 
+    const update = this.getUpdate();
 
     const updateObj = update as {
         config?: { email: boolean; sms: boolean; whattsapp: boolean };
         email?: string;
         phone?: string;
         numberDocument?: string;
-        typeDocument?: string; 
+        typeDocument?: string;
     };
 
     if (updateObj.config) {
