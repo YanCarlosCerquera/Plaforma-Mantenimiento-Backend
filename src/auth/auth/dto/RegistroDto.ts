@@ -29,8 +29,5 @@ export class RegistroDto extends PartialType(User) {
   assignedPosition?: Positions;
 
   @IsOptional()
-  assignedRol?: {
-    Rolid: Rol;
-    enum: string;
-  }; 
+  assignedRol?: Rol
 }

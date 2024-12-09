@@ -51,12 +51,9 @@ export class User extends Document {
 
     @Prop({ enum: Object.values(Positions) })
     assignedPosition?: Positions;
-    
+
     @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Rol' })
-    assignedRol?: {
-        Rolid: Rol;
-        enum: string;
-    };
+    assignedRol?: Rol
 
     @Prop(
         {
