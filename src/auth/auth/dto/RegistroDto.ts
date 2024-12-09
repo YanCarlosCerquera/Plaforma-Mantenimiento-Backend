@@ -32,4 +32,5 @@ export class RegistroDto extends PartialType(User) {
   @IsOptional()
   @IsString()
   assignedRol?: mongoose.Types.ObjectId; 
+  assignedRol?: Rol
 }

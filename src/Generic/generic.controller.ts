@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, SetMetadata } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, SetMetadata, Query } from '@nestjs/common';
 import { Document } from 'mongoose';
 import { GenericService } from './generic.service';
 import { defaultRoles, Roles } from 'src/auth/auth/decorators/rol.decorator';
@@ -14,8 +14,8 @@ export class GenericController<T extends Document, I, U> {
   }
 
   @Get()
-  findAll() {
-    return this.genericService.findAll();
+  findAll(@Query() filters: U) {
+    return this.genericService.findAll(filters);
   }
 
   @Get(':id')

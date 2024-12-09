@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UploadedFile, UseInterceptors, Get, Param } from '@nestjs/common';
+import { Controller, Post, Body, UploadedFile, UseInterceptors, Get, Param, Query } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -31,8 +31,8 @@ export class UsersController extends GenericController<User, CreateUserDto, Upda
   }
 
   @Get()
-  async findAll() {
-    return await this.usersService.findAll()
+  async findAll(@Query() filters: UpdateUserDto) {
+    return await this.usersService.findAll(filters)
   }
 
   @Get(':id')

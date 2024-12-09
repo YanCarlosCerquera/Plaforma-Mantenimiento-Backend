@@ -19,4 +19,20 @@ export class ConfigService extends GenericService<Config, CreateConfigDto, Updat
     }
     return config.emailConfig;
   }
+
+  async findSMSConfig() {
+    const config = await this.configModel.findOne().exec();
+    if(!config){
+      throw new Error('Configuracion no encontrada')
+    }
+    return config.smsConfig;
+  }
+
+  async findWssConfig() {
+    const config = await this.configModel.findOne().exec();
+    if(!config){
+      throw new Error('Configuracion no encontrada')
+    }
+    return config.wssConfig;
+  }
 }

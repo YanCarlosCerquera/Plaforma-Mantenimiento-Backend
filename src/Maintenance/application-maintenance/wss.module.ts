@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
-import { ConfigModule } from '@nestjs/config';
 import { UltraMsgService } from './Wss.service';
+import { ConfigModule } from 'src/Parametrization/config/config.module';
 
 @Module({
   imports: [HttpModule, ConfigModule],

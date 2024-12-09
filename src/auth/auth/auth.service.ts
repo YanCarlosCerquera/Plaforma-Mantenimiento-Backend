@@ -47,6 +47,7 @@ export class AuthService {
     } else {
       rolId = defaultRolId;
     }
+    const defaultCargo = 'Developer';
   
     const userToCreate = {
       ...registroDto,
