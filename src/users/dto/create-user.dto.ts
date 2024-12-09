@@ -49,8 +49,10 @@ export class CreateUserDto {
   @IsString()
   @IsNotEmpty({ message: 'La contraseña es obligatoria y no puede estar vacía.' })
   @Matches(
-    /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,}$/, 
-    { message: 'La contraseña debe tener al menos 8 caracteres, incluir al menos un número y una letra mayúscula.' }
+    /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]{8,}$/,
+    { 
+      message: 'La contraseña debe tener al menos 8 caracteres, incluir al menos una letra mayúscula, una letra minúscula, un número y un carácter especial.' 
+    }
   )
   password: string;
 
@@ -71,3 +73,4 @@ export class CreateUserDto {
   @IsOptional()
   state?: boolean;
 }
+

@@ -46,7 +46,17 @@ export class User extends Document {
     })
     numberDocument: string;
 
-    @Prop({ required: true, })
+    @Prop({
+        required: true,
+        validate: {
+            validator: function (v: string) {
+                const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+                return regex.test(v);
+            },
+            message:
+                'La contraseña debe tener al menos 8 caracteres, incluir una letra mayúscula, una letra minúscula, un número y al menos un carácter especial.',
+        },
+    })
     password: string;
 
     @Prop({ enum: Object.values(Positions) })
@@ -98,6 +108,7 @@ SchemaUser.pre('findOneAndUpdate', async function (next) {
         phone?: string;
         numberDocument?: string;
         typeDocument?: string;
+        password?: string;
     };
 
     if (updateObj.config) {
@@ -126,6 +137,10 @@ SchemaUser.pre('findOneAndUpdate', async function (next) {
 
     if (updateObj.typeDocument && !Object.values(TypeDocuments).includes(updateObj.typeDocument as TypeDocuments)) {
         return next(new Error('El tipo de documento es inválido.'));
+    }
+
+    if (updateObj.password && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/.test(updateObj.password)) {
+        return next(new Error('La contraseña debe tener al menos 8 caracteres, incluir una letra mayúscula, una letra minúscula, un número y al menos un carácter especial.'));
     }
 
     next();
