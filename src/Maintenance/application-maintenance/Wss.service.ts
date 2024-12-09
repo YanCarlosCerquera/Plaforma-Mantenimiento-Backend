@@ -1,74 +1,44 @@
-import { HttpService } from '@nestjs/axios';
 import { Injectable } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
 import { ConfigService } from 'src/Parametrization/config/config.service';
 
 @Injectable()
-export class WssService {
+export class UltraMsgService {
+  private readonly apiBaseUrl = 'https://api.ultramsg.com';
+  private readonly instance = 'instance101167';
+  private readonly token = 'jorbc87xr2ljyjcv'; // Token proporcionado por UltraMsg
 
-    private hostname: string;
-    private apiKey: string;
-    private fromNumber: string;
-    constructor
-        (
-            private readonly httpService: HttpService,
-            private readonly configService: ConfigService,
-        ) { }
+  constructor(private readonly httpService: HttpService) {}
 
-    private async loadConfig() {
-        const config = await this.configService.findWssConfig();
-        this.hostname = config.hostname;
-        this.apiKey = config.apiKey;
-        this.fromNumber = config.fromNumber;
+  /**
+   * Enviar un mensaje de WhatsApp utilizando UltraMsg.
+   * @param to Número de teléfono del destinatario (formato internacional con +)
+   * @param body Contenido del mensaje a enviar
+   */
+  async sendMessage(to: string, body: string): Promise<any> {
+    const url = `${this.apiBaseUrl}/${this.instance}/messages/chat`;
+
+    const data = {
+      token: this.token,
+      to,
+      body,
+    };
+
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    try {
+      const response = await lastValueFrom(
+        this.httpService.post(url, data, { headers }),
+      );
+
+      console.log('Mensaje enviado exitosamente:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error al enviar el mensaje:', error?.response?.data || error.message);
+      throw error;
     }
-
-
-    async sendWhatsappTemplateMessage(to: string, placeholderText: string = 'default message') {
-        await this.loadConfig()
-
-        const url = `https://${this.hostname}/whatsapp/1/message/template`;
-
-        const sanitizedText = placeholderText.trim().replace(/👋/g, ''); // Elimina caracteres o emojis no deseados.
-
-        const postData = {
-            messages: [
-                {
-                    type: 'text',
-                    from: this.fromNumber,
-                    to: to,
-                    content: {
-                        text: sanitizedText,
-                        templateName: 'abandoned_buttons1',
-                        templateData: {
-                            body: {
-                                placeholders: [sanitizedText]
-                            }
-                        },
-                        language: 'en',
-                    }
-                }
-            ]
-        };
-
-        const headers = {
-            'Authorization': `App ${this.apiKey}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        };
-
-        try {
-            const response = await lastValueFrom(
-                this.httpService.post(url, postData, { headers })
-            );
-
-            if (response.data.messages) {
-                console.log('Mensaje enviado correctamente:', response.data.messages[0]);
-            }
-
-            return response.data;
-        } catch (error) {
-            console.error('Error al enviar el mensaje de WhatsApp:', error);
-            throw error;
-        }
-    }
+  }
 }

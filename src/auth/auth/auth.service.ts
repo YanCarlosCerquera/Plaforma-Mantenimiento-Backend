@@ -10,6 +10,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { User } from 'src/users/entities/user.entity';
 import { Model } from 'mongoose';
 import { RegistroDto } from './dto/RegistroDto';
+import { InfobipService } from 'src/Maintenance/application-maintenance/sms.service';
+import { UltraMsgService } from 'src/Maintenance/application-maintenance/Wss.service';
 
 @Injectable()
 export class AuthService {
@@ -18,38 +20,40 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly mailerService: MailerService,
     private readonly rolService: RolService,
+    private readonly smsService : InfobipService,
+    private readonly wssserive : UltraMsgService,
     @InjectModel(User.name) private userModel : Model<User>
   ) { }
 
   async Registro(registroDto: RegistroDto): Promise<User> {
     const { email, numberDocument, password, assignedRol } = registroDto;
   
-    // Verifica si el usuario ya existe
+    // Verificar si el usuario ya existe
     const existingUser = await this.userModel.findOne({
-      $or: [{ email }, { numberDocument }]
+      $or: [{ email }, { numberDocument }],
     });
   
     if (existingUser) {
-      throw new BadRequestException('El nombre o numero Documento ya se encuentran registrados!!');
+      throw new BadRequestException('El email o número de documento ya están registrados!');
     }
   
     // Encriptar la contraseña
-    const Hasst = 10;
-    const hashedPassword = await bcrypt.hash(password, Hasst);
+    const hashedPassword = await bcrypt.hash(password, 10);
   
-    const idRolTemporal = '674894abd8a183de563a2f48';
-
-  const rolId = assignedRol ? assignedRol._id : idRolTemporal;
-
-  const userToCreate = {
-    ...registroDto,
-    password: hashedPassword,
-    state: true,
-    assignedRol: rolId,
-  };
+    const defaultRolId = '674894abd8a183de563a2f48';
+    const defaultCargo = 'Developer';
+    const userRol = assignedRol
+      ? { Rolid: assignedRol.Rolid || defaultRolId, enum: assignedRol.enum || defaultCargo }
+      : { Rolid: defaultRolId, enum: defaultCargo };
+  
+    const userToCreate = {
+      ...registroDto,
+      password: hashedPassword,
+      state: true,
+      assignedRol: userRol,
+    };
   
     const newUser = new this.userModel(userToCreate);
-  
     return newUser.save();
   }
   
@@ -57,30 +61,33 @@ export class AuthService {
 
   async login(loginDto: LoginDto): Promise<object> {
     const user = await this.userService.authentication(loginDto.document, loginDto.typeDocument);
-
+  
     if (!user) {
       throw new UnauthorizedException('El documento o tipo de documento no existe');
     }
-
+  
     const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
-
+  
     if (!isPasswordValid) {
       throw new UnauthorizedException('La contraseña es incorrecta');
     }
-
-
-    const rolId = user.assignedRol._id.toString();
-    const menu = await this.rolService.menu(rolId)
+  
+    let menu ={}
+    if (user.assignedRol && user.assignedRol.Rolid) {
+      const rolId = user.assignedRol.Rolid.toString();
+      menu = await this.rolService.menu(rolId);
+    } else {
+      console.warn(`User ${user._id} does not have an assigned role or role ID.`);
+    }
     
     const payload = { sub: user._id, email: user.email };
     return {
       access_token: this.jwtService.sign(payload),
       menu: menu
     };
-
   }
 
-  async iniciarRecuperacionContrasena(typeDocument: string, numberDocument: string): Promise<string> {
+  async iniciarRecuperacionContrasena(typeDocument: string, numberDocument: string ): Promise<String> {
     const user = await this.userService.findByDocumento(typeDocument, numberDocument);
     console.log(user);
     
@@ -140,6 +147,7 @@ export class AuthService {
     </html>
     `;  
   
+    await this.enviarNotificacionSMS(user, user.phone, user.name, false);
     await this.mailerService.sendMail({
       to: user.email,
       subject: 'Recuperación de Contraseña',
@@ -175,19 +183,47 @@ export class AuthService {
   }
   async verificarCodigoRecuperacion(userId: string, code: string): Promise<boolean> {
     const user = await this.userService.findOne(userId);
-
+  
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
     }
-
+  
     if (user.resetCode !== code) {
       return false;
     }
-
+  
     if (user.resetCodeExpiresAt < new Date()) {
       throw new UnauthorizedException('El código ha expirado');
     }
-
     return true;
+  }
+  
+  private async enviarNotificacionSMS(user: User, phone: string, name: string, isRequester: boolean) {
+    const mensaje =  `Hola ${user.name}, su solicitud para el cambio de contrasela ha sido recibida 
+    Codigo:${user.resetCode}
+    .
+       `;
+
+
+    try {
+      await this.smsService.sendSms(phone, mensaje);
+      console.log(`Cambair contrseña ${user.resetCode}`);
+    } catch (error) {
+      console.error(`Error al enviar notificación  ${user.resetCode}:`, error);
+    }
+  }
+  private async enviarPorwSS(user: User, phone: string, name: string, isRequester: boolean) {
+    const mensaje =  `Hola ${user.name}, su solicitud para el cambio de contrasela ha sido recibida 
+    Codigo:${user.resetCode}
+    .
+       `;
+
+
+    try {
+      await this.wssserive.sendMessage(phone, mensaje);
+      console.log(`Cambair contrseña ${user.resetCode}`);
+    } catch (error) {
+      console.error(`Error al enviar notificación  ${user.resetCode}:`, error);
+    }
   }
 }

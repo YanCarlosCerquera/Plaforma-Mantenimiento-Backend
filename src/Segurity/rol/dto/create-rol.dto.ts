@@ -17,6 +17,7 @@ export class CreateRolDto {
   @Type(() => String)
   views: string[];
 
+
   @IsOptional()
   @IsBoolean()
   state?: boolean;

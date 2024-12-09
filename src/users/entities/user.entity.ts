@@ -11,8 +11,8 @@ export class User extends Document {
     @Prop({ required: true })
     name: string;
 
-    @Prop({ required: false })
-    photoUrl?: string | null;
+  @Prop({ required: false })
+  photoUrl?: string | null;
 
     @Prop({
         required: true,

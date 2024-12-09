@@ -43,14 +43,22 @@ export class AuthController {
   ) {
     try {
       const userId = await this.authService.iniciarRecuperacionContrasena(typeDocument, numberDocument);
+      console.log(userId);
       return { 
         message: 'Se ha enviado un correo con las instrucciones para recuperar la contraseña',
-        userId: userId 
+        userId: userId,
       };
     } catch (error) {
-      throw new UnauthorizedException('No se pudo iniciar el proceso de recuperación de contraseña');
+      console.error('Error en recuperación de contraseña:', error.message);
+      if (error instanceof NotFoundException) {
+        throw new NotFoundException('Usuario no encontrado.');
+      } else if (error instanceof InternalServerErrorException) {
+        throw new InternalServerErrorException('Error al procesar la solicitud.');
+      } else {
+        throw new UnauthorizedException('No se pudo iniciar el proceso de recuperación de contraseña.');
+      }
     }
-  }
+  }    
   @Public()
   @Post('reset-password')
   async resetearContrasena(
@@ -65,7 +73,8 @@ export class AuthController {
   @Post('verify-code')
   async verificarCodigo(
     @Body('userId') userId: string,
-    @Body('code') code: string
+    @Body('code') code: string,
+
   ) {
     try {
       const isValid = await this.authService.verificarCodigoRecuperacion(userId, code);
@@ -80,5 +89,28 @@ export class AuthController {
       throw new InternalServerErrorException('Error al verificar el código');
     }
   }
+}
+ /*  @Public()
+  @Post('renviar-Codigo')
+  async renviarCodigo(
+    @Body('userId') userId: string,
+    @Body('method') method: 'email' | 'sms' | 'whatsapp',
+
+
+  ) {
+    try {
+      const isValid = await this.authService.reenviarCodigo(userId, method);
+      return { isValid };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw new NotFoundException(error.message);
+      }
+      if (error instanceof UnauthorizedException) {
+        throw new UnauthorizedException(error.message);
+      }
+      throw new InternalServerErrorException('Error al verificar el código');
+    }
+  }
 
 }
+ */
