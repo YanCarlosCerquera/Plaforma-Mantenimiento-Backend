@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsArray, IsBoolean, IsMongoId, IsNotEmpty, IsOptional, IsString } from "class-validator";
 
 export class CreateCategoryDto {
     @IsNotEmpty({ message: 'El nombre es obligatorio' })
@@ -20,6 +20,9 @@ export class CreateCategoryDto {
     @IsArray()
     @IsString({ each: true })
     specs: string[];
+    
+    @IsMongoId()
+    assignedRol?:string
 
     @IsOptional()
     @IsBoolean()

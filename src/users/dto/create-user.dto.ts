@@ -22,7 +22,6 @@ export class CreateUserDto {
   @IsNotEmpty({ message: 'El correo electrónico es obligatorio y no puede estar vacío.' })
   email: string;
 
-  @IsPhoneNumber(null, { message: 'El número de teléfono debe ser válido.' })
   @IsNotEmpty({ message: 'El número de teléfono es obligatorio y no puede estar vacío.' })
   phone: string;
 

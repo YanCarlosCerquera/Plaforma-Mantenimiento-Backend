@@ -1,68 +1,43 @@
-import { HttpService } from '@nestjs/axios';
 import { Injectable } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
-import { AxiosError } from 'axios';
-import { text } from 'stream/consumers';
 
 @Injectable()
-export class WssService {
+export class UltraMsgService {
+  private readonly apiBaseUrl = 'https://api.ultramsg.com';
+  private readonly instance = 'instance101167';
+  private readonly token = 'jorbc87xr2ljyjcv'; // Token proporcionado por UltraMsg
 
-    private readonly hostname: string = 'm385mw.api.infobip.com';
-    private readonly apiKey: string = '984bba7ce8d7a19450ab1c5f37330053-91317876-4244-4914-8e08-a51c71906fb4';
-    private readonly fromNumber: string = '447860099299';// Removed the space
-  constructor
-  (
-    private readonly httpService: HttpService,
-   
+  constructor(private readonly httpService: HttpService) {}
 
-  ) {
-    
-  }
+  /**
+   * Enviar un mensaje de WhatsApp utilizando UltraMsg.
+   * @param to Número de teléfono del destinatario (formato internacional con +)
+   * @param body Contenido del mensaje a enviar
+   */
+  async sendMessage(to: string, body: string): Promise<any> {
+    const url = `${this.apiBaseUrl}/${this.instance}/messages/chat`;
 
-  async sendWhatsappTemplateMessage(to: string, placeholderText: string = 'default message') {
-    const url = `https://${this.hostname}/whatsapp/1/message/template`;
-
-    const sanitizedText = placeholderText.trim().replace(/👋/g, ''); // Elimina caracteres o emojis no deseados.
-
-    const postData = {
-        messages: [
-            {
-                type:'text',
-                from: this.fromNumber,
-                to: to,
-                content: {
-                    text: sanitizedText,
-                    templateName: 'abandoned_buttons1',
-                    templateData: {
-                        body: {
-                            placeholders: [sanitizedText]
-                        }
-                    },
-                    language: 'en',
-                }
-            }
-        ]
+    const data = {
+      token: this.token,
+      to,
+      body,
     };
 
     const headers = {
-        'Authorization': `App ${this.apiKey}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
+      'Content-Type': 'application/json',
     };
 
     try {
-        const response = await lastValueFrom(
-            this.httpService.post(url, postData, { headers })
-        );
+      const response = await lastValueFrom(
+        this.httpService.post(url, data, { headers }),
+      );
 
-        if (response.data.messages) {
-            console.log('Mensaje enviado correctamente:', response.data.messages[0]);
-        }
-
-        return response.data;
+      console.log('Mensaje enviado exitosamente:', response.data);
+      return response.data;
     } catch (error) {
-        console.error('Error al enviar el mensaje de WhatsApp:', error);
-        throw error;
+      console.error('Error al enviar el mensaje:', error?.response?.data || error.message);
+      throw error;
     }
-}
+  }
 }

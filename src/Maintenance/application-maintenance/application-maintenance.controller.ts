@@ -13,7 +13,7 @@ export class ApplicationMaintenanceController extends GenericController<Maintena
 
   @Get()
   async findAll() {
-    return this.applicationMaintenanceService.ConsulatNumeroSAERIE();
+    return this.applicationMaintenanceService.consultarNumeroSerie();
   }
 
 }
