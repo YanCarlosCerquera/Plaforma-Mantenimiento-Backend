@@ -4,7 +4,7 @@ import { UpdateRolDto } from './dto/update-rol.dto';
 import { GenericService } from 'src/Generic/generic.service';
 import { Rol } from './entities/rol.entity';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, RootFilterQuery } from 'mongoose';
 
 @Injectable()
 export class RolService extends GenericService<Rol, CreateRolDto, UpdateRolDto> {
@@ -24,8 +24,8 @@ export class RolService extends GenericService<Rol, CreateRolDto, UpdateRolDto> 
     }).exec();
   }
 
-  async findAll(): Promise<Rol[]> {
-    return await this.rolModel.find().populate({
+  async findAll(filters?: UpdateRolDto): Promise<Rol[]> {
+    return await this.rolModel.find(filters as unknown as RootFilterQuery<Rol>).populate({
       path: 'views',
       select: 'name route',
       populate: {

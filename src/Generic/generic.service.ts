@@ -1,4 +1,4 @@
-import { Model } from 'mongoose';
+import { Model, RootFilterQuery } from 'mongoose';
 import { Document } from 'mongoose';
 export class GenericService<T extends Document, I, U> {
   constructor(private readonly model: Model<T>,) { }
@@ -8,9 +8,9 @@ export class GenericService<T extends Document, I, U> {
     return await createdItem.save();
   }
 
-  async findAll(): Promise<T[]> {
-    return await this.model.find().exec();
-  }
+  async findAll(filters?: U): Promise<T[]> {
+    return await this.model.find(filters as unknown as RootFilterQuery<T>).exec();
+  }  
 
   async findOne(id: string): Promise<T | null> {
     return await this.model.findById(id).exec();

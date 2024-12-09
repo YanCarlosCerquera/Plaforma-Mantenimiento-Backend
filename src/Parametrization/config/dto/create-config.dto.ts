@@ -15,4 +15,12 @@ export class CreateConfigDto {
         apiKey: string;
         number: string;
     };
+
+    @IsNotEmpty({ message: 'La configuración de Whattsapp es obligatoria.' })
+    wssConfig: {
+        hostname: string;
+        apiKey: string;
+        fromNumber: string;
+    }
+
 }

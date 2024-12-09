@@ -19,6 +19,13 @@ export class Config extends Document{
         number: string;
     }
 
+    @Prop({type: Object, required: true})
+    wssConfig: {
+        hostname: string;
+        apiKey: string;
+        fromNumber: string;
+    }
+
 }
 export type DocummentConfig = Document & Config
 export const SchemaConfig = SchemaFactory.createForClass(Config)

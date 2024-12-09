@@ -1,11 +1,9 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { join } from 'path';
-
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
@@ -28,28 +26,31 @@ import { SmsModule } from './Maintenance/application-maintenance/sms.module';
 import { InfobipService } from './Maintenance/application-maintenance/sms.service';
 import { HttpModule } from '@nestjs/axios';
 import { WssModule } from './Maintenance/application-maintenance/wss.module';
+import { ConfigModule } from './Parametrization/config/config.module';
+import { ConfigService } from './Parametrization/config/config.service';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '.env',
-    }),
-    MongooseModule.forRoot('mongodb://localhost:27017/sena'),
+    ConfigModule,
+    MongooseModule.forRoot('mongodb://localhost:4040/sena'),
     ScheduleModule.forRoot(),
-    MailerModule.forRoot({
-      transport: {
-        host: 'smtp.gmail.com',
-        secure: false,
-        auth: {
-          user: 'xzenzi259@gmail.com',
-          pass: 'zpbj cngz oxch nthe',
-        },
-      },
-      defaults: {
-        from: '<xzenzi259@gmail.com>',
-      },
-     
+    MailerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => {
+        const emailConfig = await configService.findEmailConfig();
+        return {
+          transport: {
+            host: emailConfig.host,
+            secure: false,
+            auth: {
+              user: emailConfig.user,
+              pass: emailConfig.password,
+            },
+          },
+          defaults: {
+            from: `"No Reply" <${emailConfig.defaults}>`,
+          },
           template: {
             dir: join(__dirname, 'templates'),
             adapter: new HandlebarsAdapter(),
@@ -57,36 +58,38 @@ import { WssModule } from './Maintenance/application-maintenance/wss.module';
               strict: true,
             },
           },
-        }),
-    
-        HttpModule,
-    
-        // Módulos personalizados
-        // Seguridad
-        UsersModule,
-        ModulosModule,
-        RolModule,
-        ViewsModule,
-        AuthModule,
-    
-        // Parametrización
-        DepartamentsModule,
-        TrainingCentersModule,
-        CityModule,
-        DependeceModule,
-        ActionLogModule,
-    
-        // Mantenimiento
-        CategoriesModule,
-        AssetsModule,
-        ApplicationMaintenanceModule,
-        WordOrdenModule,
-        MaintenanceModule,
-        WorkReportModule,
-        SmsModule,
-        WssModule,
-      ],
-      controllers: [AppController],
-      providers: [AppService, InfobipService],
-    })
-    export class AppModule {}
+        };
+      },
+    }),
+
+    HttpModule,
+
+    // Módulos personalizados
+    // Seguridad
+    UsersModule,
+    ModulosModule,
+    RolModule,
+    ViewsModule,
+    AuthModule,
+
+    // Parametrización
+    DepartamentsModule,
+    TrainingCentersModule,
+    CityModule,
+    DependeceModule,
+    ActionLogModule,
+
+    // Mantenimiento
+    CategoriesModule,
+    AssetsModule,
+    ApplicationMaintenanceModule,
+    WordOrdenModule,
+    MaintenanceModule,
+    WorkReportModule,
+    SmsModule,
+    WssModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService, InfobipService],
+})
+export class AppModule { }
