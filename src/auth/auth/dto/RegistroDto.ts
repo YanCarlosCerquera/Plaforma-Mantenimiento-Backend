@@ -31,5 +31,5 @@ export class RegistroDto extends PartialType(User) {
 
   @IsOptional()
   @IsString()
-  assignedRol?: Rol
+  assignedRol?: Rol;
 }

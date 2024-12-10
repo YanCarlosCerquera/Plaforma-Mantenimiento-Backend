@@ -18,10 +18,11 @@ export class User extends Document {
         required: true,
         unique: true,
         match: [
-            /@(soy\.sena\.edu\.co|sena\.edu\.co)$/i,
-            'El correo debe pertenecer al dominio @soy.sena.edu.co o @sena.edu.co.',
+            /@(soy\.sena\.edu\.co|sena\.edu\.co|gmail\.com)$/i,
+            'El correo debe pertenecer a los dominios @soy.sena.edu.co, @sena.edu.co o @gmail.com.',
         ],
     })
+    
     email: string;
 
   @Prop({

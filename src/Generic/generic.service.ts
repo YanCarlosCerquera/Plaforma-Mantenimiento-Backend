@@ -23,4 +23,8 @@ export class GenericService<T extends Document, I, U> {
   async remove(id: string): Promise<T | null> {
     return await this.model.findByIdAndDelete(id).exec();
   }
+  async filter(filters: Partial<Record<keyof T, any>>): Promise<T[]> {
+    return await this.model.find(filters as unknown as RootFilterQuery<T>).exec();
+  }
+  
 }

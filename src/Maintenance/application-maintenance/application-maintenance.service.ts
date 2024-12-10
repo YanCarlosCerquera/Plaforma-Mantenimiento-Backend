@@ -29,6 +29,8 @@ export class ApplicationMaintenanceService extends GenericService<MaintenanceReq
     super(maintenanceModel);
   }
 
+
+
   async create(createDto: CreateApplicationMaintenanceDto): Promise<MaintenanceRequest> {
     await this.validarNumeroSeries(createDto);
 
@@ -170,11 +172,15 @@ export class ApplicationMaintenanceService extends GenericService<MaintenanceReq
   }
 
   async validarNumeroSeries(dto: CreateApplicationMaintenanceDto | UpdateApplicationMaintenanceDto): Promise<void> {
-    if (!dto.serialNumber) {
+    if (!dto.serialNumber || dto.serialNumber.trim() === "") {
+      console.log(dto.serialNumber);
+      
       throw new BadRequestException('El número de serie es obligatorio.');
+        
     }
 
     const asset = await this.assetModel.findOne({ serialNumber: dto.serialNumber });
+    
 
     if (!asset) {
       throw new BadRequestException(`El número de serie '${dto.serialNumber}' no está registrado.`);

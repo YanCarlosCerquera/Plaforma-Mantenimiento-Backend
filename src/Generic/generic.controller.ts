@@ -32,5 +32,13 @@ export class GenericController<T extends Document, I, U> {
   remove(@Param('id') id: string) {
     return this.genericService.remove(id);
   }
+  @Get('filter')
+  async filter(@Query() filters: Partial<Record<keyof T, any>>): Promise<T[]> {
+    if (!filters || Object.keys(filters).length === 0) {
+      throw new Error('Debe proporcionar al menos un parámetro de filtro.');
+    }
+    return await this.genericService.filter(filters);
+  }
+
 }
 
