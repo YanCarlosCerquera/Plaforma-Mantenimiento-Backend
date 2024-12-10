@@ -63,10 +63,7 @@ export class User extends Document {
     assignedPosition?: Positions;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Rol' })
-  assignedRol?: {
-      Rolid: Rol;
-      enum: string;
-  };  
+  assignedRol?: Rol 
 
     @Prop()
     resetCode?: string;
