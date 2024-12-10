@@ -32,7 +32,7 @@ import { ConfigService } from './Parametrization/config/config.service';
 @Module({
   imports: [
     ConfigModule,
-    MongooseModule.forRoot('mongodb://localhost:4040/sena'),
+    MongooseModule.forRoot('mongodb://localhost:27017/sena'),
     ScheduleModule.forRoot(),
     MailerModule.forRootAsync({
       imports: [ConfigModule],

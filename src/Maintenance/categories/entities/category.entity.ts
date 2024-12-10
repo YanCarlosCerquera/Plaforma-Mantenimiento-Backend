@@ -16,11 +16,8 @@ export class Category extends Document{
     @Prop({ type:[String], required: true})
     specs: string[]
 
-
     @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Rol' })
     assignedRol: Rol;
-    
-
 
     @Prop()
     state?: boolean

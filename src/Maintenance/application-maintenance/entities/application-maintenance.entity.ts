@@ -21,6 +21,9 @@ export class MaintenanceRequest extends Document {
   @Prop({ required: true })
   issueDescription: string;
 
+  @Prop({required : true})
+  InventoryCode : string
+
   @Prop({ default: false })
   workOrderStatus: boolean;
 

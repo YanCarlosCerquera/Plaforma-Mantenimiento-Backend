@@ -21,6 +21,10 @@ export class CreateApplicationMaintenanceDto {
   @IsNotEmpty({ message: 'El tipo de mantenimiento es obligatorio.' })
   maintenanceType: string;
 
+@IsString()
+@IsNotEmpty({ message: 'El Codigo Inventario es obligatorio.' })
+  InventoryCode
+
   @IsString()
   @IsNotEmpty({ message: 'La descripción de la falla es obligatoria.' })
   @MaxLength(500, { message: 'La descripción de la falla no debe exceder los 500 caracteres.' })
