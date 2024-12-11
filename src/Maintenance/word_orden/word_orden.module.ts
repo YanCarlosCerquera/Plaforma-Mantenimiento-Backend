@@ -5,11 +5,15 @@ import { WordOrdenController } from './word_orden.controller';
 import { OrdenesTrabajo, OrdenesTrabajoSchema } from './entities/word_orden.entity';
 import { ApplicationMaintenanceModule } from '../application-maintenance/application-maintenance.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { UsersModule } from 'src/users/users.module';
+import { AssetsModule } from '../assets/assets.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: OrdenesTrabajo.name, schema: OrdenesTrabajoSchema }]),
     ApplicationMaintenanceModule, 
+    UsersModule,
+    AssetsModule,
     ScheduleModule.forRoot()
   ],
   controllers: [WordOrdenController],

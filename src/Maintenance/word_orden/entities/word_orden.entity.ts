@@ -1,5 +1,5 @@
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import mongoose, { Document, ObjectId } from 'mongoose';
 import { Types } from 'mongoose';
 import { MaintenanceRequest } from 'src/Maintenance/application-maintenance/entities/application-maintenance.entity';
 import { Maintenance } from 'src/Maintenance/maintenance/entities/maintenance.entity';
@@ -30,7 +30,7 @@ required: true })
 
   @Prop({ type: Object, required: true  , ref:'MaintenanceRequest' , unique:true})
   solicitud:{
-    solicirud: MaintenanceRequest,
+    solicitudId: ObjectId
   };
 
   @Prop({ type: Boolean, default: true })

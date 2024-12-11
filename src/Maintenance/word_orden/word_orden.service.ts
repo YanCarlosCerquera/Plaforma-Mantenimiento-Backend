@@ -7,12 +7,17 @@ import { GenericService } from 'src/Generic/generic.service';
 import { OrdenesTrabajo } from './entities/word_orden.entity';
 import { MaintenanceRequest } from 'src/Maintenance/application-maintenance/entities/application-maintenance.entity';
 import { Cron } from '@nestjs/schedule';
+import { User } from 'src/users/entities/user.entity';
+import { error } from 'console';
+import { Assets } from '../assets/entities/asset.entity';
 
 @Injectable()
 export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordOrdenDto, UpdateWordOrdenDto> {
   constructor(
     @InjectModel(OrdenesTrabajo.name) private OrdenModel: Model<OrdenesTrabajo>,
-    @InjectModel(MaintenanceRequest.name) private maintenanceModel: Model<MaintenanceRequest>
+    @InjectModel(MaintenanceRequest.name) private maintenanceModel: Model<MaintenanceRequest>,
+    @InjectModel(User.name) private userModel: Model<User> ,  @InjectModel(Assets.name) private assetModel: Model<Assets> 
+
   ) {
     super(OrdenModel);
   }
@@ -84,18 +89,22 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
     }
   }
   
-  
-
   async findAllWithDetails(): Promise<OrdenesTrabajo[]> {
-    return this.OrdenModel.find({ })
-      .populate('tecnicoId', 'nombre email')
-      .populate('instructorId', 'nombre email')
+    return this.OrdenModel.find({})
+      .populate('tecnicoId', 'name')
+      .populate('instructorId', 'name ')
+
       .populate({
         path: 'solicitud.solicitudId',
-        model: this.maintenanceModel,
-        select: 'requesterName trackingNumber workOrderStatus'
+        model : this.assetModel,
+        select:'serialNumber',
+        populate: {
+          path: 'serialNumber', 
+          model: this.assetModel, 
+          select: 'name',
+        },
       })
       .lean()
-      .exec() as Promise<[]>;
+      .exec() as Promise<OrdenesTrabajo[]>;
   }
 }

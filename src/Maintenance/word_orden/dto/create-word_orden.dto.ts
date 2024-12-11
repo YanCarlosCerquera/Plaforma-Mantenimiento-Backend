@@ -1,11 +1,11 @@
 import { IsNotEmpty, IsDate, IsEnum, IsMongoId, ValidateNested, IsOptional, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Types } from 'mongoose';
+import { ObjectId, Types } from 'mongoose';
 
 class SolicitudDto {
   @IsMongoId()
   @IsNotEmpty()
-  solicitudId: Types.ObjectId;
+  solicitudId: ObjectId;
 }
 
 

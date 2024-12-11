@@ -78,11 +78,15 @@ export class AuthService {
     if (user.assignedRol && user.assignedRol) {
       const rolId = user.assignedRol.toString();
       menu = await this.rolService.menu(rolId);
+console.log(rolId);
+
+
+      
     } else {
       console.warn(`User ${user._id} does not have an assigned role or role ID.`);
     }
     
-    const payload = { sub: user._id, email: user.email };
+    const payload =  {sub: user._id, email: user.email };
     return {
       access_token: this.jwtService.sign(payload),
       menu: menu
