@@ -4,6 +4,7 @@ import { CreateApplicationMaintenanceDto } from './dto/create-application-mainte
 import { UpdateApplicationMaintenanceDto } from './dto/update-application-maintenance.dto';
 import { GenericController } from 'src/Generic/generic.controller';
 import { MaintenanceRequest } from './entities/application-maintenance.entity';
+import { ApiQuery } from '@nestjs/swagger';
 
 @Controller('application-maintenance')
 export class ApplicationMaintenanceController extends GenericController<MaintenanceRequest ,CreateApplicationMaintenanceDto , UpdateApplicationMaintenanceDto> {
@@ -11,25 +12,37 @@ export class ApplicationMaintenanceController extends GenericController<Maintena
     super(applicationMaintenanceService);
   }
 
- 
   @Get('Filtro')
-  async filterByTrackingNumber(@Query('trackingNumber') trackingNumber?: string) {
-    if (!trackingNumber) {
-      throw new HttpException(
-        { message: 'El parámetro trackingNumber es requerido.' },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    const result = await this.filter({ trackingNumber });
-
-    if (result.length === 0) {
-      throw new HttpException(
-        { message: `No se encontraron resultados para el número de radicado: ${trackingNumber}` },
-        HttpStatus.NOT_FOUND,
-      );
-    }
-
-    return result;
+  @ApiQuery({ name: 'trackingNumber', required: false, type: String, description: 'Número de rastreo' })
+  @ApiQuery({ name: 'serialNumber', required: false, type: String, description: 'Número de serie' })
+  @ApiQuery({ name: 'estado', required: false, type: String, description: 'Estado del registro' })
+  async filterByCriteria(
+  @Query('trackingNumber') trackingNumber?: string,
+  @Query('serialNumber') serialNumber?: string,
+  @Query('estado') estado?: string,
+) {
+  if (!trackingNumber && !serialNumber && !estado) {
+    throw new HttpException(
+      { message: 'Al menos uno de los parámetros (trackingNumber, serialNumber, estado) es requerido.' },
+      HttpStatus.BAD_REQUEST,
+    );
   }
+
+  // Crear filtros dinámicamente según los parámetros proporcionados
+  const filters: { [key: string]: string } = {};
+  if (trackingNumber) filters.trackingNumber = trackingNumber;
+  if (serialNumber) filters.serialNumber = serialNumber;
+  if (estado) filters.estado = estado;
+
+  const result = await this.filter(filters);
+
+  if (result.length === 0) {
+    throw new HttpException(
+      { message: 'No se encontraron resultados para los filtros proporcionados.' },
+      HttpStatus.NOT_FOUND,
+    );
+  }
+
+  return result;
+}
 }

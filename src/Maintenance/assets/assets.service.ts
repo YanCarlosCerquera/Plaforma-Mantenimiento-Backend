@@ -13,7 +13,7 @@ export class AssetsService extends GenericService<Assets , CreateAssetDto , Upda
   }
   async findOne(id: string): Promise<Assets> {
     return await this.AssetsModel.findById(id)
-      .populate({
+      .populate({ 
         path: 'trainingCenterId',       
         select: 'name',                   
       })
@@ -23,7 +23,7 @@ export class AssetsService extends GenericService<Assets , CreateAssetDto , Upda
       })
       .populate ({
         path: 'categoryId',
-        select:'name'
+        select:'name operationVars  accessories  '
       })
       .exec();
   }
