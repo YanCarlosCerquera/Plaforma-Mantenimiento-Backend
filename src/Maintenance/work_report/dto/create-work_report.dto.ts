@@ -3,7 +3,7 @@ import { Types } from 'mongoose';
 
 export class CreateWorkReportDto {
   @IsMongoId()
-  orderId: string; 
+  orderId: Types.ObjectId; 
 
   @IsNumber()
   costs: number; 

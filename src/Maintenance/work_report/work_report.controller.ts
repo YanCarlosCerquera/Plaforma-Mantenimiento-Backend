@@ -5,6 +5,7 @@ import { UpdateWorkReportDto } from './dto/update-work_report.dto';
 import { GenericController } from 'src/Generic/generic.controller';
 import { WorkReport } from './entities/work_report.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Types } from 'mongoose';
 
 @Controller('work-report')
 export class WorkReportController extends GenericController<WorkReport , CreateWorkReportDto,UpdateWorkReportDto> {
@@ -15,11 +16,16 @@ export class WorkReportController extends GenericController<WorkReport , CreateW
   @UseInterceptors(FileInterceptor('file'))
   async uploadPdf(
     @UploadedFile() file: Express.Multer.File, 
-    @Param('orderId') orderId: string 
+    @Param('orderId') orderId: Types.ObjectId 
   ) {
     if (!file) {
       throw new BadRequestException('No file uploaded'); 
     }
     return this.workReportService.createFromPDF(file.buffer, orderId); 
+  }
+
+  @Get('maintenanceHistory/:serialNumber')
+  async maintenanceHistory(@Param('serialNumber') serialNumber: string){
+    return await this.workReportService.maintenanceHistory(serialNumber)
   }
 }

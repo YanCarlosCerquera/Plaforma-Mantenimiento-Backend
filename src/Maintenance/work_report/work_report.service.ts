@@ -1,11 +1,13 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { WorkReport } from './entities/work_report.entity';
 import { CreateWorkReportDto } from './dto/create-work_report.dto';
 import { UpdateWorkReportDto } from './dto/update-work_report.dto';
 import { GenericService } from 'src/Generic/generic.service';
 import * as pdf from 'pdf-parse';
+import path from 'path';
+import { match } from 'assert';
 
 @Injectable()
 export class WorkReportService extends GenericService<WorkReport, CreateWorkReportDto, UpdateWorkReportDto> {
@@ -27,7 +29,7 @@ export class WorkReportService extends GenericService<WorkReport, CreateWorkRepo
     }).exec();
   }
 
-  async createFromPDF(pdfBuffer: Buffer, orderId: string): Promise<WorkReport> {
+  async createFromPDF(pdfBuffer: Buffer, orderId: Types.ObjectId): Promise<WorkReport> {
     try {
       const data = await pdf(pdfBuffer);
       console.log('Texto extraído del PDF:', data.text); // Agrega este log
@@ -38,7 +40,7 @@ export class WorkReportService extends GenericService<WorkReport, CreateWorkRepo
     }
   }
   
-  private extractDataFromPDF(text: string, orderId: string): CreateWorkReportDto {
+  private extractDataFromPDF(text: string, orderId: Types.ObjectId): CreateWorkReportDto {
     const costs = this.extractNumber(text, /Costs:\s*\$?(\d+(\.\d+)?)/);
     const hours = this.extractNumber(text, /Hours:\s*(\d+(\.\d+)?)/);
     const responses = this.extractField(text, /Responses:\s*(.+)/);
@@ -71,5 +73,20 @@ export class WorkReportService extends GenericService<WorkReport, CreateWorkRepo
   private extractBoolean(text: string, regex: RegExp): boolean {
     const match = text.match(regex);
     return match ? match[1].toLowerCase() === 'true' : false;
+  }
+
+  async maintenanceHistory(serialNumber: string){
+    return await this.workReportModel.find().populate({
+      path: 'orderId',
+      select: 'radicado',
+      match: { state: true},
+      populate: {
+        path: 'solicitud.solicitudId',
+        select: 'maintenanceType',
+        match: {serialNumber: serialNumber}
+      }
+    }).exec().then(results => {
+      return results.filter(workReport => workReport.orderId?.solicitud?.solicitudId);
+  });
   }
 }  
