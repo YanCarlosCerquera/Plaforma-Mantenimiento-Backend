@@ -29,7 +29,7 @@ export class User extends Document {
     required: true,
     validate: {
       validator: function (v: string) {
-        return /^57\d{7,14}$/.test(v);
+        return /^(?:\d{1,3})?\d{7,14}$/.test(v);
       },
       message: 'El número de teléfono debe ser válido y seguir el formato internacional, como +5736615144.',
     },
@@ -102,7 +102,7 @@ SchemaUser.pre('findOneAndUpdate', async function (next) {
         return next(new Error('El correo debe pertenecer al dominio @soy.sena.edu.co o @sena.edu.co.'));
     }
 
-    if (updateObj.phone && !/^\+\d{1,3}\d{7,14}$/.test(updateObj.phone)) {
+    if (updateObj.phone && !/^(?:\d{1,3})?\d{7,14}$/.test(updateObj.phone)) {
         return next(new Error('El número de teléfono debe ser válido y seguir el formato internacional, como +573219906598.'));
     }
 
