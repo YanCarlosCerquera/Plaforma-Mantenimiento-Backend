@@ -62,7 +62,7 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsMongoId({ message: 'El rol debe ser un ObjectId válido' })
-  assignedRol?: ObjectId;
+  assignedRol?: string;
 
   @ValidateNested()
   @IsObject({ message: 'La configuración debe ser un objeto válido.' })

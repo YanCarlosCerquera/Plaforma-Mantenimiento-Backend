@@ -5,6 +5,8 @@ import { UpdateApplicationMaintenanceDto } from './dto/update-application-mainte
 import { GenericController } from 'src/Generic/generic.controller';
 import { MaintenanceRequest } from './entities/application-maintenance.entity';
 import { ApiQuery } from '@nestjs/swagger';
+import { Public } from 'src/auth/auth/decorators/public.decorator';
+@Public()
 
 @Controller('application-maintenance')
 export class ApplicationMaintenanceController extends GenericController<MaintenanceRequest ,CreateApplicationMaintenanceDto , UpdateApplicationMaintenanceDto> {

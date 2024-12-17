@@ -4,6 +4,8 @@ import { CreateMaintenanceDto } from './dto/create-maintenance.dto';
 import { UpdateMaintenanceDto } from './dto/update-maintenance.dto';
 import { GenericController } from 'src/Generic/generic.controller';
 import { Maintenance } from './entities/maintenance.entity';
+import { Public } from 'src/auth/auth/decorators/public.decorator';
+@Public()
 
 @Controller('maintenance')
 export class MaintenanceController extends GenericController<Maintenance, CreateMaintenanceDto, UpdateMaintenanceDto>{
