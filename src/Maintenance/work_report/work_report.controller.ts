@@ -11,7 +11,7 @@ import { Types } from 'mongoose';
 export class WorkReportController extends GenericController<WorkReport , CreateWorkReportDto,UpdateWorkReportDto> {
   constructor(private readonly workReportService: WorkReportService) {
     super(workReportService)
-  }
+  }     
   @Post('upload-pdf/:orderId')
   @UseInterceptors(FileInterceptor('file'))
   async uploadPdf(

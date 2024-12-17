@@ -14,10 +14,10 @@ export class Category extends Document{
     accessories: string[]
 
     @Prop({ type:[String], required: true})
-    specs: string[]
+    specs: string[] 
 
     @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Rol' })
-    assignedRol: Rol;
+    assignedRol?: Rol;
 
     @Prop()
     state?: boolean
