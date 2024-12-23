@@ -1,4 +1,10 @@
-import { ConflictException, Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { MailerService } from '@nestjs-modules/mailer';
 import { UsersService } from 'src/users/users.service';
@@ -20,26 +26,28 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly mailerService: MailerService,
     private readonly rolService: RolService,
-    private readonly smsService : InfobipService,
-    private readonly wssserive : UltraMsgService,
-    @InjectModel(User.name) private userModel : Model<User>
-  ) { }
+    private readonly smsService: InfobipService,
+    private readonly wssserive: UltraMsgService,
+    @InjectModel(User.name) private userModel: Model<User>,
+  ) {}
 
   async Registro(registroDto: RegistroDto): Promise<User> {
     const { email, numberDocument, password, assignedRol } = registroDto;
-  
+
     // Verificar si el usuario ya existe
     const existingUser = await this.userModel.findOne({
       $or: [{ email }, { numberDocument }],
     });
-  
+
     if (existingUser) {
-      throw new BadRequestException('El email o número de documento ya están registrados!');
+      throw new BadRequestException(
+        'El email o número de documento ya están registrados!',
+      );
     }
-  
+
     // Encriptar la contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
-  
+
     const defaultRolId = '674894abd8a183de563a2f48';
     let rolId;
     if (assignedRol && assignedRol) {
@@ -48,65 +56,75 @@ export class AuthService {
       rolId = defaultRolId;
     }
     const defaultCargo = 'Developer';
-  
+
     const userToCreate = {
       ...registroDto,
       password: hashedPassword,
       assignedRol: defaultRolId,
     };
-  
+
     const newUser = new this.userModel(userToCreate);
     return newUser.save();
   }
-  
-
 
   async login(loginDto: LoginDto): Promise<object> {
-    const user = await this.userService.authentication(loginDto.document, loginDto.typeDocument);
-  
+    const user = await this.userService.authentication(
+      loginDto.document,
+      loginDto.typeDocument,
+    );
+
     if (!user) {
-      throw new UnauthorizedException('El documento o tipo de documento no existe');
+      throw new UnauthorizedException(
+        'El documento o tipo de documento no existe',
+      );
     }
-  
-    const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
-  
+
+    const isPasswordValid = await bcrypt.compare(
+      loginDto.password,
+      user.password,
+    );
+
     if (!isPasswordValid) {
-      throw new UnauthorizedException('La contraseña es incorrecta');
+      throw new UnauthorizedException('Credenciales incorrectas');
     }
-  
-    let menu ={}
+
+    let menu = {};
     if (user.assignedRol && user.assignedRol) {
       const rolId = user.assignedRol.toString();
       menu = await this.rolService.menu(rolId);
-console.log(rolId);
-
-
-      
+      console.log(rolId);
     } else {
-      console.warn(`User ${user._id} does not have an assigned role or role ID.`);
+      console.warn(
+        `User ${user._id} does not have an assigned role or role ID.`,
+      );
     }
-    
-    const payload =  {sub: user._id, email: user.email };
+
+    const payload = { sub: user._id, email: user.email };
     return {
       access_token: this.jwtService.sign(payload),
-      menu: menu
+      menu: menu,
     };
   }
 
-  async iniciarRecuperacionContrasena(typeDocument: string, numberDocument: string ): Promise<String> {
-    const user = await this.userService.findByDocumento(typeDocument, numberDocument);
+  async iniciarRecuperacionContrasena(
+    typeDocument: string,
+    numberDocument: string,
+  ): Promise<String> {
+    const user = await this.userService.findByDocumento(
+      typeDocument,
+      numberDocument,
+    );
     console.log(user);
-    
-  
+
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
     }
-  
-    const code = randomBytes(3).toString('hex');  // Generates a random 6 character code
-    user.resetCode = code;  // Save the code to the user model
-    user.resetCodeExpiresAt = new Date(Date.now() + 15 * 60 * 1000);  // Expiry time: 15 minutes
+
+    const code = randomBytes(3).toString('hex'); // Generates a random 6 character code
+    user.resetCode = code; // Save the code to the user model
+    user.resetCodeExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // Expiry time: 15 minutes
     await user.save();
-  
+
     const htmlContent = `
     <!DOCTYPE html>
     <html lang="es">
@@ -151,20 +169,23 @@ console.log(rolId);
         </style>
     </body>
     </html>
-    `;  
-  
-/*     await this.enviarNotificacionSMS(user, user.phone, user.name, false);
- */    await this.mailerService.sendMail({
+    `;
+
+    /*     await this.enviarNotificacionSMS(user, user.phone, user.name, false);
+     */ await this.mailerService.sendMail({
       to: user.email,
       subject: 'Recuperación de Contraseña',
       html: htmlContent,
     });
-  
-    return user._id.toString(); 
-  }
-  
 
-  async resetearContrasena(userId: string, code: string, nuevaContrasena: string): Promise<void> {
+    return user._id.toString();
+  }
+
+  async resetearContrasena(
+    userId: string,
+    code: string,
+    nuevaContrasena: string,
+  ): Promise<void> {
     const user = await this.userService.findOne(userId);
 
     if (!user) {
@@ -181,35 +202,41 @@ console.log(rolId);
 
     const hashedPassword = await bcrypt.hash(nuevaContrasena, 10);
     user.password = hashedPassword;
-    user.replaceOne = null;  
+    user.replaceOne = null;
     user.resetCode = null;
-    user.resetCodeExpiresAt = null; 
+    user.resetCodeExpiresAt = null;
     await user.save();
-
   }
-  async verificarCodigoRecuperacion(userId: string, code: string): Promise<boolean> {
+  async verificarCodigoRecuperacion(
+    userId: string,
+    code: string,
+  ): Promise<boolean> {
     const user = await this.userService.findOne(userId);
-  
+
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
     }
-  
+
     if (user.resetCode !== code) {
       return false;
     }
-  
+
     if (user.resetCodeExpiresAt < new Date()) {
       throw new UnauthorizedException('El código ha expirado');
     }
     return true;
   }
-  
-  private async enviarNotificacionSMS(user: User, phone: string, name: string, isRequester: boolean) {
-    const mensaje =  `Hola ${user.name}, su solicitud para el cambio de contrasela ha sido recibida 
+
+  private async enviarNotificacionSMS(
+    user: User,
+    phone: string,
+    name: string,
+    isRequester: boolean,
+  ) {
+    const mensaje = `Hola ${user.name}, su solicitud para el cambio de contrasela ha sido recibida 
     Codigo:${user.resetCode}
     .
        `;
-
 
     try {
       await this.smsService.sendSms(phone, mensaje);
@@ -218,12 +245,16 @@ console.log(rolId);
       console.error(`Error al enviar notificación  ${user.resetCode}:`, error);
     }
   }
-  private async enviarPorwSS(user: User, phone: string, name: string, isRequester: boolean) {
-    const mensaje =  `Hola ${user.name}, su solicitud para el cambio de contrasela ha sido recibida 
+  private async enviarPorwSS(
+    user: User,
+    phone: string,
+    name: string,
+    isRequester: boolean,
+  ) {
+    const mensaje = `Hola ${user.name}, su solicitud para el cambio de contrasela ha sido recibida 
     Codigo:${user.resetCode}
     .
        `;
-
 
     try {
       await this.wssserive.sendMessage(phone, mensaje);
