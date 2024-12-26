@@ -24,15 +24,38 @@ export class UsersService extends GenericService<User, CreateUserDto, UpdateUser
     return await createdItem.save();
   }
 
+
   async update(id: string, updateDto: UpdateUserDto): Promise<User> {
-    if (updateDto.password) {
-      updateDto.password = await bcrypt.hash(updateDto.password, 10)
+    const user = await this.UserModel.findById(id).exec();
+  
+    if (!user) {
+      throw new Error('Usuario no encontrado');
     }
+  
+    if (updateDto.AnteriosPassword && updateDto.password) {
+      const isPasswordValid = await bcrypt.compare(updateDto.AnteriosPassword, user.password);
+  
+      if (!isPasswordValid) {
+        throw new Error('La contraseña anterior es incorrecta');
+      }
+  
+      updateDto.password = await bcrypt.hash(updateDto.password, 10);
+    } else if (updateDto.password) {
+      throw new Error('Debes proporcionar la contraseña anterior para cambiar la contraseña');
+    }
+  
     return await this.UserModel.findByIdAndUpdate(id, updateDto, { new: true }).exec();
+  
   }
+
+  
 
   async findByDocumento(typeDocument: string, numberDocument: string): Promise<User | null> {
     return this.UserModel.findOne({ typeDocument, numberDocument }).exec();
+  }
+
+  async FindByPhone(phone: string): Promise<User | null> {
+    return this.UserModel.findOne({ phone }).exec();
   }
 
   async updatePassword(userId: string, newPassword: string): Promise<void> {

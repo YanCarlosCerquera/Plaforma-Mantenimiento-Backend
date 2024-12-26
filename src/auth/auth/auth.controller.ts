@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UnauthorizedException, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { Controller, Post, Body, UnauthorizedException, NotFoundException, InternalServerErrorException, HttpCode, HttpStatus, BadRequestException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/Login';
 import { Public } from './decorators/public.decorator';
@@ -12,7 +12,7 @@ export class AuthController {
   ) { }
 
   @Public()
-  @Post('registro')
+  @Post('     ')
   async registro(@Body() registroDto: RegistroDto) {
     try {
       const registrado = await this.authService.Registro(registroDto);
@@ -89,28 +89,26 @@ export class AuthController {
       throw new InternalServerErrorException('Error al verificar el código');
     }
   }
-}
- /*  @Public()
-  @Post('renviar-Codigo')
-  async renviarCodigo(
-    @Body('userId') userId: string,
-    @Body('method') method: 'email' | 'sms' | 'whatsapp',
 
-
-  ) {
-    try {
-      const isValid = await this.authService.reenviarCodigo(userId, method);
-      return { isValid };
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw new NotFoundException(error.message);
-      }
-      if (error instanceof UnauthorizedException) {
-        throw new UnauthorizedException(error.message);
-      }
-      throw new InternalServerErrorException('Error al verificar el código');
+@Post('enviar-codigo')
+@HttpCode(HttpStatus.OK)
+@Public()
+async enviarCodigo(@Body() body: { userId: string; method: string }) {
+  try {
+    const success = await this.authService.enviarCodigoRecuperacion(body.userId, body.method);
+    if (success) {
+      return { message: 'Código de recuperación enviado exitosamente' };
+    } else {
+      throw new BadRequestException('Error al enviar el código de recuperación');
     }
+  } catch (error) {
+    if (error instanceof NotFoundException) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+    if (error instanceof UnauthorizedException) {
+      throw new UnauthorizedException(error.message);
+    }
+    throw new BadRequestException(error.message);
   }
-
 }
- */
+}

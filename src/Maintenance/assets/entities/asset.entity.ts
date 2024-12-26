@@ -8,8 +8,8 @@ export type AssetsDocument = Assets & Document;
 
 @Schema({ timestamps: true })
 export class Assets extends Document {
-  @Prop({ required: true })
-  image: string;
+  @Prop({ required: false })
+  image?: string | null;
 
   @Prop({ required: true })
   name: string;
@@ -18,7 +18,7 @@ export class Assets extends Document {
   location: string;
 
   @Prop({ required: true })
-  acquisitionDate: Date;
+  acquisitionDate: string;
 
   @Prop({ required: true })
   brand: string;
@@ -38,8 +38,8 @@ export class Assets extends Document {
   @Prop({ required: true })
   inventoryCode: string;
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true })
-  accountHolderId: User;
+  @Prop({required: true})
+  accountHolder: string ;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true })
   categoryId: Category;

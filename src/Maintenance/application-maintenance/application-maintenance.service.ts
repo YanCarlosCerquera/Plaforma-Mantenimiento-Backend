@@ -12,6 +12,10 @@ import { InfobipService } from './sms.service';
 import { UltraMsgService } from './Wss.service';
 import axios from 'axios';
 
+const TELEGRAM_TOPICS = {
+  SOLICITANTE: 36, // ID del tema "Solicitante"
+  INSTRUCTOR: 35  // ID del tema "Instructor"
+};
 
 @Injectable()
 export class ApplicationMaintenanceService extends GenericService<MaintenanceRequest, CreateApplicationMaintenanceDto, UpdateApplicationMaintenanceDto> {
@@ -40,23 +44,19 @@ export class ApplicationMaintenanceService extends GenericService<MaintenanceReq
     try {
       const userToNotify = await this.findUserToNotify(savedItem.serialNumber);
       if (userToNotify) {
-/*         await this.enviarNotificacionSMS(savedItem, userToNotify.phoneNumber, userToNotify.name, false);
- */        await this.enviarNotificacionWhatsApp(savedItem, userToNotify.phoneNumber, userToNotify.name, true
-
-
-
-
-
-  
- );
-        await this.enviarNotificacionTelegram(savedItem, userToNotify.name);
-
-        if (savedItem.requesterPhone) {
-/*           await this.enviarNotificacionSMS(savedItem, savedItem.requesterPhone, savedItem.requesterName, true);
- */          await this.enviarNotificacionWhatsApp(savedItem, savedItem.requesterPhone, savedItem.requesterName, true);
-        }
+        await this.enviarNotificacionWhatsApp(savedItem, userToNotify.phoneNumber, userToNotify.name, false);
+        await this.enviarNotificacionTelegram(savedItem, userToNotify.name, TELEGRAM_TOPICS.INSTRUCTOR);
       } else {
-        console.log(`No se encontró un usuario para notificar para la solicitud ${savedItem.trackingNumber}`);
+        console.log(`No se encontró un instructor para notificar para la solicitud ${savedItem.trackingNumber}`);
+      }
+
+      // Notificar al solicitante si el teléfono del solicitante está disponible
+      if (savedItem.requesterPhone) {
+        console.log(`Notificando al solicitante: ${savedItem.requesterName}, teléfono: ${savedItem.requesterPhone}`);
+        await this.enviarNotificacionTelegram(savedItem, savedItem.requesterName, TELEGRAM_TOPICS.SOLICITANTE);
+        await this.enviarNotificacionWhatsApp(savedItem, savedItem.requesterPhone, savedItem.requesterName, true);
+      } else {
+        console.log(`No se encontró un teléfono para notificar al solicitante de la solicitud ${savedItem.trackingNumber}`);
       }
     } catch (error) {
       console.error(`Error al procesar la notificación para la solicitud ${savedItem.trackingNumber}:`, error);
@@ -119,19 +119,18 @@ export class ApplicationMaintenanceService extends GenericService<MaintenanceReq
 
   private async enviarNotificacionSMS(solicitud: MaintenanceRequest, phone: string, name: string, isRequester: boolean) {
     const mensaje = isRequester
-      ? `Hola ${name}, su solicitud de mantenimiento ha sido recibida y está siendo procesada.
-       Detalles:
-       - Número de Seguimiento: ${solicitud.trackingNumber}
-       - Tipo de Mantenimiento: ${solicitud.maintenanceType}
-       - Descripción: ${solicitud.issueDescription.substring(0, 50)}...
-       Le mantendremos informado sobre el progreso.`
-      : `Hola ${name}, se le ha asignado una nueva solicitud de mantenimiento.
-       Detalles:
-       - Número de Seguimiento: ${solicitud.trackingNumber}
-       - Tipo de Mantenimiento: ${solicitud.maintenanceType}
-       - Descripción: ${solicitud.issueDescription.substring(0, 50)}...
-       - Solicitante: ${solicitud.requesterName}
-       Por favor, revise y atienda esta solicitud lo antes posible.`;
+  ? `Hola ${name}, su solicitud de mantenimiento está siendo procesada. Detalles: 
+     - Seguimiento: ${solicitud.trackingNumber} 
+     - Mantenimiento: ${solicitud.maintenanceType} 
+     - Descripción: ${solicitud.issueDescription.substring(0, 50)}... 
+     Estaremos en contacto para más detalles.`
+  : `Hola ${name}, se le ha asignado una nueva solicitud de mantenimiento. Detalles: 
+     - Seguimiento: ${solicitud.trackingNumber} 
+     - Mantenimiento: ${solicitud.maintenanceType} 
+     - Descripción: ${solicitud.issueDescription.substring(0, 50)}... 
+     - Solicitante: ${solicitud.requesterName} 
+     Por favor, atiéndala a la brevedad.`;
+
 
     const fullMessage = `${mensaje}
   Para más información: https://t.me/+iFfUv76--XtjNzlh`;
@@ -174,13 +173,13 @@ export class ApplicationMaintenanceService extends GenericService<MaintenanceReq
   async validarNumeroSeries(dto: CreateApplicationMaintenanceDto | UpdateApplicationMaintenanceDto): Promise<void> {
     if (!dto.serialNumber || dto.serialNumber.trim() === "") {
       console.log(dto.serialNumber);
-      
+
       throw new BadRequestException('El número de serie es obligatorio.');
-        
+
     }
 
     const asset = await this.assetModel.findOne({ serialNumber: dto.serialNumber });
-    
+
 
     if (!asset) {
       throw new BadRequestException(`El número de serie '${dto.serialNumber}' no está registrado.`);
@@ -228,30 +227,57 @@ export class ApplicationMaintenanceService extends GenericService<MaintenanceReq
       }
     ]);
   }
-
-  private async enviarNotificacionTelegram(solicitud: MaintenanceRequest, name: string): Promise<void> {
-    const mensaje = `
-    Hola ${name},
-    Se ha creado una nueva solicitud de mantenimiento con los siguientes detalles: 
-    - Número de seguimiento: ${solicitud.trackingNumber}
-    - Tipo de Mantenimiento: ${solicitud.maintenanceType}
-    - Descripción: ${solicitud.issueDescription}
-    - Solicitante: ${solicitud.requesterName}
-    - Estado: ${solicitud.workOrderStatus}
-    
-    Para más información, por favor, visita el bot: 
-    https://t.me/SeneaProyectobot
-  `;
-
+  private async enviarNotificacionTelegram(
+    solicitud: MaintenanceRequest,
+    name: string,
+    topicId: number
+  ): Promise<void> {
+    const isRequester = topicId === TELEGRAM_TOPICS.SOLICITANTE;
+    const mensaje = isRequester
+      ? `
+        Hola ${name},
+        Se ha registrado su solicitud de mantenimiento con los siguientes detalles: 
+        - Número de seguimiento: ${solicitud.trackingNumber}
+        - Tipo de Mantenimiento: ${solicitud.maintenanceType}
+        - Descripción: ${solicitud.issueDescription}
+        - Estado: ${solicitud.workOrderStatus}
+        
+        Le mantendremos informado sobre el progreso de su solicitud.
+        Para más información, visite: https://t.me/SeneaProyectobot
+      `
+      : `
+        Hola ${name},
+        Se le ha asignado una nueva solicitud de mantenimiento con los siguientes detalles: 
+        - Número de seguimiento: ${solicitud.trackingNumber}
+        - Tipo de Mantenimiento: ${solicitud.maintenanceType}
+        - Descripción: ${solicitud.issueDescription}
+        - Solicitante: ${solicitud.requesterName}
+        - Estado: ${solicitud.workOrderStatus}
+        
+        Por favor, revise y atienda esta solicitud lo antes posible.
+        Para más información, visite: https://t.me/SeneaProyectobot
+      `;
+  
+    const stickerFileId = "CAACAgEAAxkBAAMHZ2M0z9nsiq93Cx7mkxmyvO8Eo_YAAkEFAAJ6ByBH1BcAAePLwOg3NgQ"; 
+  
     try {
+      // Enviar el mensaje
       await axios.post(`https://api.telegram.org/bot${this.telegramToken}/sendMessage`, {
         chat_id: this.chatId,
+        message_thread_id: topicId,
         text: mensaje
       });
-      console.log(`Notificación enviada al grupo o usuario en Telegram`);
+  
+      // Enviar el sticker
+      await axios.post(`https://api.telegram.org/bot${this.telegramToken}/sendSticker`, {
+        chat_id: this.chatId,
+        message_thread_id: topicId,
+        sticker: stickerFileId
+      });
+  
+      console.log(`Notificación enviada al tema ${isRequester ? 'Solicitante' : 'Instructor'} en Telegram con sticker`);
     } catch (error) {
-      console.error(`Error al enviar notificación por Telegram para la solicitud ${solicitud.trackingNumber}:`, error);
+      console.error(`Error al enviar notificación a Telegram para la solicitud ${solicitud.trackingNumber}:`, error);
     }
   }
-}
-
+}  

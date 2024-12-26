@@ -3,8 +3,8 @@ import { Types } from 'mongoose';
 
 export class CreateAssetDto {
 @IsString()
-@IsNotEmpty()
-image:string;
+@IsOptional()
+image?:string;
 
     
   @IsString()
@@ -15,9 +15,9 @@ image:string;
   @IsNotEmpty()
   location: string;
 
-  @IsDate()
+  @IsString()
   @IsNotEmpty()
-  acquisitionDate: Date;
+  acquisitionDate: string;
 
   @IsString()
   @IsNotEmpty()
@@ -43,9 +43,9 @@ image:string;
   @IsNotEmpty()
   inventoryCode: string;
 
-  @IsMongoId()
+  @IsString()
   @IsNotEmpty()
-  accountHolderId: Types.ObjectId;
+  accountHolder:string;
 
   @IsMongoId()
   @IsNotEmpty()
