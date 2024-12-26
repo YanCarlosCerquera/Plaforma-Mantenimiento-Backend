@@ -32,9 +32,9 @@ export class UsersService extends GenericService<User, CreateUserDto, UpdateUser
       throw new Error('Usuario no encontrado');
     }
   
-    if (updateDto.AnteriosPassword && updateDto.password) {
-      const isPasswordValid = await bcrypt.compare(updateDto.AnteriosPassword, user.password);
-  
+    if (updateDto.oldPassword && updateDto.password) {
+      const isPasswordValid = await bcrypt.compare(updateDto.oldPassword, user.password);
+
       if (!isPasswordValid) {
         throw new Error('La contraseña anterior es incorrecta');
       }

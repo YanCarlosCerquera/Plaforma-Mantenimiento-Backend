@@ -42,31 +42,44 @@ export class RolService extends GenericService<Rol, CreateRolDto, UpdateRolDto> 
       throw new Error(`El rol con ID ${id} no tiene vistas asociadas.`);
     }
   
-    const menu = Object.values(
+    const groupedMenu = Object.values(
       data.views.reduce((acc: any, view: any) => {
-        const moduloName = view.moduloId.name;
+        if (!view.moduloId) {
+          // Manejar las vistas sin módulo aparte
+          acc["noModule"] = acc["noModule"] || [];
+          acc["noModule"].push({
+            name: view.name,
+            route: view.route,
+          });
+        } else {
+          const moduloName = view.moduloId.name;
   
-        if (!acc[moduloName]) {
-          acc[moduloName] = {
-            modulo: moduloName,
-            views: [],
-          };
+          if (!acc[moduloName]) {
+            acc[moduloName] = {
+              modulo: moduloName,
+              views: [],
+            };
+          }
+  
+          acc[moduloName].views.push({
+            name: view.name,
+            route: view.route,
+          });
         }
-  
-        acc[moduloName].views.push({
-          name: view.name,
-          route: view.route,
-        });
   
         return acc;
       }, {})
     );
   
+    const noModuleViews = groupedMenu.find((item: any) => Array.isArray(item)) || [];
+    const modules = groupedMenu.filter((item: any) => !Array.isArray(item));
+  
     return {
       role: data.name,
-      menu,
+      menu: [...noModuleViews, ...modules],
     };
   }
+  
 
   async findName(name: string): Promise<Rol> {
     return await this.rolModel.findOne({ name: name })
