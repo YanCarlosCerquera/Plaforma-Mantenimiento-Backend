@@ -84,6 +84,7 @@ export class UsersService extends GenericService<User, CreateUserDto, UpdateUser
     return user;
   }
 
+  
   async findAll(filters?: UpdateUserDto): Promise<User[]> {
     const users = await this.UserModel.find(filters as unknown as RootFilterQuery<User>).populate({
       path: 'assignedRol',
@@ -98,12 +99,28 @@ export class UsersService extends GenericService<User, CreateUserDto, UpdateUser
     });
   }
 
-  async findAllTecnhnical(): Promise<User[]> {
-    const rol = await this.rolService.findName('técnico')
-    return await this.UserModel.find({ assignedRol: rol }).populate({
-      path: 'assignedRol',
-      select: 'name'
-    }).exec();
-  }
+  async findAllTechnical(): Promise<User[]> {
+    try {
+      // Primero buscamos el rol de técnico
+      const rolTecnico = await this.rolService.findName('técnico');
+      
+      if (!rolTecnico) {
+        throw new Error('No se encontró el rol de técnico');
+      }
 
+      // Buscamos todos los usuarios con ese rol
+      const technicalUsers = await this.UserModel.find({
+        assignedRol: rolTecnico._id
+      }).populate({
+        path: 'assignedRol',
+        select: 'name'
+      }).exec();
+
+      console.log(`Se encontraron ${technicalUsers.length} técnicos`);
+      return technicalUsers;
+    } catch (error) {
+      console.error('Error al buscar técnicos:', error);
+      throw new Error('Error al buscar usuarios técnicos');
+    }
+  }
 }

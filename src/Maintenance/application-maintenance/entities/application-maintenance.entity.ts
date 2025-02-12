@@ -35,6 +35,8 @@ export type DocumentMaintenance = MaintenanceRequest & Document;
 export const MaintenanceRequestSchema = SchemaFactory.createForClass(MaintenanceRequest);
 MaintenanceRequestSchema.index({ trackingNumber: 1 }, { unique: true });
 
+
+
 MaintenanceRequestSchema.pre('validate', function(next) {
   if (this.isNew && !this.trackingNumber) {
     const now = new Date();

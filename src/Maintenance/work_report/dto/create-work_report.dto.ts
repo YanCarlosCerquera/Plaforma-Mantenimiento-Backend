@@ -1,9 +1,9 @@
 import { IsString, IsNumber, IsBoolean, IsOptional, IsMongoId } from 'class-validator';
-import { Types } from 'mongoose';
+import { ObjectId, Types } from 'mongoose';
 
 export class CreateWorkReportDto {
   @IsMongoId()
-  orderId: Types.ObjectId; 
+  orderId:Types.ObjectId; 
 
   @IsNumber()
   costs: number; 

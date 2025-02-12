@@ -70,4 +70,7 @@ image?:string;
   @IsBoolean()
   @IsNotEmpty()
   status: boolean;
+
+
+  
 }

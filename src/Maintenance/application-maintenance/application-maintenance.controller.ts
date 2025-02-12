@@ -14,6 +14,17 @@ export class ApplicationMaintenanceController extends GenericController<Maintena
     super(applicationMaintenanceService);
   }
 
+ @Get('Consultar/:id')
+async consultarPorId(@Param('id') id: string){
+
+    return await this.applicationMaintenanceService.consultarPorId(id);
+    }
+ 
+
+
+
+
+
   @Get('Filtro')
   @ApiQuery({ name: 'trackingNumber', required: false, type: String, description: 'Número de rastreo' })
   @ApiQuery({ name: 'serialNumber', required: false, type: String, description: 'Número de serie' })
@@ -47,4 +58,5 @@ export class ApplicationMaintenanceController extends GenericController<Maintena
 
   return result;
 }
+
 }

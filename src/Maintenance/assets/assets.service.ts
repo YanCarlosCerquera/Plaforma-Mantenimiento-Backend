@@ -6,22 +6,46 @@ import { Assets, AssetsDocument } from './entities/asset.entity';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Category } from '../categories/entities/category.entity';
+import { GoogleCalendarService } from './service/google-calendar.service';
 
 @Injectable()
 export class AssetsService extends GenericService<Assets , CreateAssetDto , UpdateAssetDto>{
   constructor(@InjectModel(Assets.name) private AssetsModel : Model <AssetsDocument>,
-  @InjectModel(Category.name) private categoryModel: Model<Category>
+  @InjectModel(Category.name) private categoryModel: Model<Category>,
+  private googleCalendarService: GoogleCalendarService
+
 
 
 ){
     super(AssetsModel)
   }
+  async create(createDto: CreateAssetDto): Promise<Assets> {
+    try {
+      const createdItem = new this.AssetsModel(createDto);
+      const savedItem = await createdItem.save();
 
-async create(createDto: CreateAssetDto): Promise<Assets> {
-    const createdItem = new this.AssetsModel(createDto);
-    return await createdItem.save();
-}
+      try {
+        const eventName = `Pendejo de ${savedItem.name}`;
+        const eventColor = 'red'; // Puedes cambiar esto o hacerlo dinámico según tus necesidades
+        const eventData = await this.googleCalendarService.createEvent(
+          savedItem.name,
+          savedItem.acquisitionDate.toISOString(),
+          eventName,
+        );
+        console.log(`Evento creado en Google Calendar: ${eventData.htmlLink}`);
+        
+        savedItem.calendarEventLink = eventData.htmlLink;
+        await savedItem.save();
+      } catch (error) {
+        console.error('Error al crear el evento en Google Calendar:', error);
+      }
 
+      return savedItem;
+    } catch (error) {
+      console.error('Error al crear el activo:', error);
+      throw new Error('No se pudo crear el activo.');
+    }
+  }
 
   async findOne(id: string): Promise<Assets> {
     return await this.AssetsModel.findById(id)

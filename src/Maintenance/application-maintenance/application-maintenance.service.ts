@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { CreateApplicationMaintenanceDto } from './dto/create-application-maintenance.dto';
 import { UpdateApplicationMaintenanceDto } from './dto/update-application-maintenance.dto';
 import { GenericService } from 'src/Generic/generic.service';
@@ -8,276 +8,269 @@ import { MaintenanceRequest } from './entities/application-maintenance.entity';
 import { Assets } from '../assets/entities/asset.entity';
 import { User } from 'src/users/entities/user.entity';
 import { Rol } from 'src/Segurity/rol/entities/rol.entity';
-import { InfobipService } from './sms.service';
-import { UltraMsgService } from './Wss.service';
-import axios from 'axios';
-
-const TELEGRAM_TOPICS = {
-  SOLICITANTE: 36, // ID del tema "Solicitante"
-  INSTRUCTOR: 35  // ID del tema "Instructor"
-};
+import { NotificationService } from './services/notification.service';
 
 @Injectable()
 export class ApplicationMaintenanceService extends GenericService<MaintenanceRequest, CreateApplicationMaintenanceDto, UpdateApplicationMaintenanceDto> {
-  private readonly telegramToken = "7327782691:AAFRGmwrwReJPE9d3DRqBXoZDVKPZ1XgMZY"
-  private readonly chatId = "-1002352603720"
-
   constructor(
-    @InjectModel(MaintenanceRequest.name) private maintenanceModel: Model<MaintenanceRequest>,
-    @InjectModel(Assets.name) private assetModel: Model<Assets>,
-    @InjectModel(User.name) private userModel: Model<User>,
-    @InjectModel(Rol.name) private roleModel: Model<Rol>,
-    private infobipService: InfobipService,
-    private wssService: UltraMsgService
+    @InjectModel(MaintenanceRequest.name) private readonly maintenanceModel: Model<MaintenanceRequest>,
+    @InjectModel(Assets.name) private readonly assetModel: Model<Assets>,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(Rol.name) private readonly roleModel: Model<Rol>,
+    private readonly notificationService: NotificationService
   ) {
     super(maintenanceModel);
   }
 
-
-
   async create(createDto: CreateApplicationMaintenanceDto): Promise<MaintenanceRequest> {
-    await this.validarNumeroSeries(createDto);
-
-    const createdItem = new this.maintenanceModel(createDto);
-    const savedItem = await createdItem.save();
-
     try {
-      const userToNotify = await this.findUserToNotify(savedItem.serialNumber);
-      if (userToNotify) {
-        await this.enviarNotificacionWhatsApp(savedItem, userToNotify.phoneNumber, userToNotify.name, false);
-        await this.enviarNotificacionTelegram(savedItem, userToNotify.name, TELEGRAM_TOPICS.INSTRUCTOR);
-      } else {
-        console.log(`No se encontró un instructor para notificar para la solicitud ${savedItem.trackingNumber}`);
-      }
-
-      // Notificar al solicitante si el teléfono del solicitante está disponible
-      if (savedItem.requesterPhone) {
-        console.log(`Notificando al solicitante: ${savedItem.requesterName}, teléfono: ${savedItem.requesterPhone}`);
-        await this.enviarNotificacionTelegram(savedItem, savedItem.requesterName, TELEGRAM_TOPICS.SOLICITANTE);
-        await this.enviarNotificacionWhatsApp(savedItem, savedItem.requesterPhone, savedItem.requesterName, true);
-      } else {
-        console.log(`No se encontró un teléfono para notificar al solicitante de la solicitud ${savedItem.trackingNumber}`);
-      }
+      // Validar y crear la solicitud
+      await this.validateSerialNumber(createDto);
+      const createdRequest = await this.createMaintenanceRequest(createDto);
+      
+      // Manejar notificaciones
+      await this.handleMaintenanceNotifications(createdRequest);
+      
+      return createdRequest;
     } catch (error) {
-      console.error(`Error al procesar la notificación para la solicitud ${savedItem.trackingNumber}:`, error);
+      this.handleError(error, 'Error al crear la solicitud de mantenimiento');
     }
+  }
 
-    return savedItem;
+  private async createMaintenanceRequest(dto: CreateApplicationMaintenanceDto): Promise<MaintenanceRequest> {
+    try {
+      const maintenanceRequest = new this.maintenanceModel(dto);
+      return await maintenanceRequest.save();
+    } catch (error) {
+      throw new BadRequestException('Error al guardar la solicitud de mantenimiento');
+    }
+  }
+
+  private async handleMaintenanceNotifications(maintenanceRequest: MaintenanceRequest): Promise<void> {
+    try {
+      const notifications = [];
+      console.log('Iniciando proceso de notificaciones...');
+
+      // 1. Buscar y notificar al encargado
+      const userToNotify = await this.findUserToNotify(maintenanceRequest.serialNumber);
+      if (userToNotify && userToNotify.phoneNumber) {
+        console.log(`✉️ Preparando notificación para el encargado: ${userToNotify.name}`);
+        notifications.push(
+          this.notificationService.sendNotification({
+            recipientName: userToNotify.name,
+            recipientPhone: userToNotify.phoneNumber,
+            trackingNumber: maintenanceRequest.trackingNumber,
+            maintenanceType: maintenanceRequest.maintenanceType,
+            description: maintenanceRequest.issueDescription,
+            requesterName: maintenanceRequest.requesterName,
+            isRequester: false
+          })
+        );
+      } else {
+        console.log('⚠️ No se encontró información del encargado para notificar');
+      }
+
+      // 2. Notificar al solicitante
+      if (maintenanceRequest.requesterPhone && maintenanceRequest.requesterName) {
+        console.log(`✉️ Preparando notificación para el solicitante: ${maintenanceRequest.requesterName}`);
+        notifications.push(
+          this.notificationService.sendNotification({
+            recipientName: maintenanceRequest.requesterName,
+            recipientPhone: maintenanceRequest.requesterPhone,
+            trackingNumber: maintenanceRequest.trackingNumber,
+            maintenanceType: maintenanceRequest.maintenanceType,
+            description: maintenanceRequest.issueDescription,
+            requesterName: maintenanceRequest.requesterName,
+            isRequester: true
+          })
+        );
+      } else {
+        console.log('⚠️ No se encontró información del solicitante para notificar');
+      }
+
+      // Enviar todas las notificaciones
+      if (notifications.length > 0) {
+        await Promise.all(notifications);
+        console.log(`✅ Se enviaron ${notifications.length} notificaciones exitosamente`);
+      } else {
+        console.log('⚠️ No se pudo enviar ninguna notificación');
+      }
+
+    } catch (error) {
+      console.error('❌ Error al enviar notificaciones:', error);
+      // No lanzamos el error para no interrumpir el flujo principal
+    }
   }
 
   private async findUserToNotify(serialNumber: string): Promise<{ phoneNumber: string; name: string } | null> {
-    const result = await this.assetModel.aggregate([
-      { $match: { serialNumber } },
-      {
-        $lookup: {
-          from: 'categories',
-          localField: 'categoryId',
-          foreignField: '_id',
-          as: 'category'
-        }
-      },
-      { $unwind: '$category' },
-      {
-        $lookup: {
-          from: 'rols',
-          localField: 'category.assignedRol',
-          foreignField: '_id',
-          as: 'role'
-        }
-      },
-      { $unwind: '$role' },
-      {
-        $lookup: {
-          from: 'users',
-          let: { roleId: '$role._id' },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ['$assignedRol', '$$roleId'] }
+    try {
+      const result = await this.assetModel.aggregate([
+        { 
+          $match: { serialNumber } 
+        },
+        {
+          $lookup: {
+            from: 'categories',
+            localField: 'categoryId',
+            foreignField: '_id',
+            as: 'category'
+          }
+        },
+        { 
+          $unwind: '$category' 
+        },
+        {
+          $lookup: {
+            from: 'rols',
+            localField: 'category.assignedRol',
+            foreignField: '_id',
+            as: 'role'
+          }
+        },
+        { 
+          $unwind: '$role' 
+        },
+        {
+          $lookup: {
+            from: 'users',
+            let: { roleId: '$role._id' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ['$assignedRol', '$$roleId'] }
+                }
               }
-            }
-          ],
-          as: 'user'
+            ],
+            as: 'user'
+          }
+        },
+        { 
+          $unwind: '$user' 
+        },
+        {
+          $project: {
+            phoneNumber: '$user.phone',
+            name: '$user.name'
+          }
         }
-      },
-      { $unwind: '$user' },
-      {
-        $project: {
-          phoneNumber: '$user.phone',
-          name: '$user.name'
-        }
-      }
-    ]);
+      ]);
 
-    if (result.length === 0) {
-      console.log(`No se encontró un usuario para notificar para el número de serie ${serialNumber}`);
+      return result.length > 0 ? result[0] : null;
+    } catch (error) {
+      console.error('Error al buscar usuario para notificar:', error);
       return null;
     }
-
-    return result[0];
   }
 
-  private async enviarNotificacionSMS(solicitud: MaintenanceRequest, phone: string, name: string, isRequester: boolean) {
-    const mensaje = isRequester
-  ? `Hola ${name}, su solicitud de mantenimiento está siendo procesada. Detalles: 
-     - Seguimiento: ${solicitud.trackingNumber} 
-     - Mantenimiento: ${solicitud.maintenanceType} 
-     - Descripción: ${solicitud.issueDescription.substring(0, 50)}... 
-     Estaremos en contacto para más detalles.`
-  : `Hola ${name}, se le ha asignado una nueva solicitud de mantenimiento. Detalles: 
-     - Seguimiento: ${solicitud.trackingNumber} 
-     - Mantenimiento: ${solicitud.maintenanceType} 
-     - Descripción: ${solicitud.issueDescription.substring(0, 50)}... 
-     - Solicitante: ${solicitud.requesterName} 
-     Por favor, atiéndala a la brevedad.`;
-
-
-    const fullMessage = `${mensaje}
-  Para más información: https://t.me/+iFfUv76--XtjNzlh`;
-
-    try {
-      await this.infobipService.sendSms(phone, fullMessage);
-      console.log(`Notificación SMS enviada para la solicitud ${solicitud.trackingNumber} al número ${phone}`);
-    } catch (error) {
-      console.error(`Error al enviar notificación SMS para la solicitud ${solicitud.trackingNumber}:`, error);
-    }
-  }
-
-  private async enviarNotificacionWhatsApp(solicitud: MaintenanceRequest, phone: string, name: string, isRequester: boolean) {
-    const mensaje = isRequester
-      ? `Hola ${name}, su solicitud de mantenimiento ha sido recibida y está siendo procesada.
-       Detalles:
-       - Número de Seguimiento: ${solicitud.trackingNumber}
-       - Tipo de Mantenimiento: ${solicitud.maintenanceType}
-       - Descripción: ${solicitud.issueDescription.substring(0, 50)}...
-       Le mantendremos informado sobre el progreso.`
-      : `Hola ${name}, se le ha asignado una nueva solicitud de mantenimiento.
-       Detalles:
-       - Número de Seguimiento: ${solicitud.trackingNumber}
-       - Tipo de Mantenimiento: ${solicitud.maintenanceType}
-       - Descripción: ${solicitud.issueDescription.substring(0, 50)}...
-       - Solicitante: ${solicitud.requesterName}
-       Por favor, revise y atienda esta solicitud lo antes posible.`;
-
-    const fullMessage = `${mensaje}
-  Para más información: https://t.me/+iFfUv76--XtjNzlh`;
-
-    try {
-      await this.wssService.sendMessage(phone, fullMessage);
-      console.log(`Notificación WhatsApp enviada para la solicitud ${solicitud.trackingNumber} al número ${phone}`);
-    } catch (error) {
-      console.error(`Error al enviar notificación WhatsApp para la solicitud ${solicitud.trackingNumber}:`, error);
-    }
-  }
-
-  async validarNumeroSeries(dto: CreateApplicationMaintenanceDto | UpdateApplicationMaintenanceDto): Promise<void> {
-    if (!dto.serialNumber || dto.serialNumber.trim() === "") {
-      console.log(dto.serialNumber);
-
+  private async validateSerialNumber(dto: CreateApplicationMaintenanceDto | UpdateApplicationMaintenanceDto): Promise<void> {
+    if (!dto.serialNumber?.trim()) {
       throw new BadRequestException('El número de serie es obligatorio.');
-
     }
 
-    const asset = await this.assetModel.findOne({ serialNumber: dto.serialNumber });
-
+    const [asset, existingRequest] = await Promise.all([
+      this.assetModel.findOne({ serialNumber: dto.serialNumber }),
+      dto.trackingNumber ? this.maintenanceModel.findOne({ trackingNumber: dto.trackingNumber }) : null
+    ]);
 
     if (!asset) {
       throw new BadRequestException(`El número de serie '${dto.serialNumber}' no está registrado.`);
     }
 
-    if (dto.trackingNumber) {
-      const existingRequest = await this.maintenanceModel.findOne({
-        trackingNumber: dto.trackingNumber,
-      });
-
-      if (existingRequest) {
-        throw new BadRequestException(`El número de seguimiento '${dto.trackingNumber}' ya está registrado.`);
-      }
+    if (existingRequest) {
+      throw new BadRequestException(`El número de seguimiento '${dto.trackingNumber}' ya está registrado.`);
     }
-
-    console.log(`El número de serie '${dto.serialNumber}' es válido y está registrado.`);
   }
 
-  async consultarNumeroSerie() {
-    return this.maintenanceModel.aggregate([
-      {
-        $lookup: {
-          from: 'assets',
-          localField: 'serialNumber',
-          foreignField: 'serialNumber',
-          as: 'assetInfo'
-        }
-      },
-      {
-        $unwind: '$assetInfo'
-      },
-      {
-        $project: {
-          requesterName: 1,
-          requesterPhone: 1,
-          trackingNumber: 1,
-          serialNumber: 1,
-          maintenanceType: 1,
-          issueDescription: 1,
-          workOrderStatus: 1,
-          createdAt: 1,
-          updatedAt: 1,
-          assetInfo: 1
-        }
-      }
-    ]);
-  }
-  private async enviarNotificacionTelegram(
-    solicitud: MaintenanceRequest,
-    name: string,
-    topicId: number
-  ): Promise<void> {
-    const isRequester = topicId === TELEGRAM_TOPICS.SOLICITANTE;
-    const mensaje = isRequester
-      ? `
-        Hola ${name},
-        Se ha registrado su solicitud de mantenimiento con los siguientes detalles: 
-        - Número de seguimiento: ${solicitud.trackingNumber}
-        - Tipo de Mantenimiento: ${solicitud.maintenanceType}
-        - Descripción: ${solicitud.issueDescription}
-        - Estado: ${solicitud.workOrderStatus}
-        
-        Le mantendremos informado sobre el progreso de su solicitud.
-        Para más información, visite: https://t.me/SeneaProyectobot
-      `
-      : `
-        Hola ${name},
-        Se le ha asignado una nueva solicitud de mantenimiento con los siguientes detalles: 
-        - Número de seguimiento: ${solicitud.trackingNumber}
-        - Tipo de Mantenimiento: ${solicitud.maintenanceType}
-        - Descripción: ${solicitud.issueDescription}
-        - Solicitante: ${solicitud.requesterName}
-        - Estado: ${solicitud.workOrderStatus}
-        
-        Por favor, revise y atienda esta solicitud lo antes posible.
-        Para más información, visite: https://t.me/SeneaProyectobot
-      `;
-  
-    const stickerFileId = "CAACAgEAAxkBAAMHZ2M0z9nsiq93Cx7mkxmyvO8Eo_YAAkEFAAJ6ByBH1BcAAePLwOg3NgQ"; 
-  
+  async consultarPorId(id: string) {
     try {
-      // Enviar el mensaje
-      await axios.post(`https://api.telegram.org/bot${this.telegramToken}/sendMessage`, {
-        chat_id: this.chatId,
-        message_thread_id: topicId,
-        text: mensaje
-      });
-  
-      // Enviar el sticker
-      await axios.post(`https://api.telegram.org/bot${this.telegramToken}/sendSticker`, {
-        chat_id: this.chatId,
-        message_thread_id: topicId,
-        sticker: stickerFileId
-      });
-  
-      console.log(`Notificación enviada al tema ${isRequester ? 'Solicitante' : 'Instructor'} en Telegram con sticker`);
+      const objectId = new Types.ObjectId(id);
+      const result = await this.maintenanceModel.aggregate([
+        {
+          $match: { _id: objectId }
+        },
+        {
+          $lookup: {
+            from: 'assets',
+            localField: 'serialNumber',
+            foreignField: 'serialNumber',
+            as: 'assetInfo'
+          }
+        },
+        {
+          $unwind: '$assetInfo'
+        },
+        {
+          $lookup: {
+            from: 'trainingcenters',
+            localField: 'assetInfo.trainingCenterId',
+            foreignField: '_id',
+            as: 'trainingCenterInfo'
+          }
+        },
+        {
+          $addFields: {
+            'assetInfo.trainingCenterId': {
+              $map: {
+                input: '$trainingCenterInfo',
+                as: 'tc',
+                in: {
+                  id: '$$tc._id',
+                  name: '$$tc.name'
+                }
+              }
+            }
+          }
+        },
+        {
+          $project: {
+            requesterName: 1,
+            requesterPhone: 1,
+            trackingNumber: 1,
+            serialNumber: 1,
+            maintenanceType: 1,
+            issueDescription: 1,
+            workOrderStatus: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            assetInfo: {
+              _id: 1,
+              image: 1,
+              name: 1,
+              location: 1,
+              acquisitionDate: 1,
+              brand: 1,
+              modelo: 1,
+              equipmentType: 1,
+              trainingCenterId: 1,
+              serialNumber: 1,
+              inventoryCode: 1,
+              accountHolder: 1,
+              categoryId: 1,
+              manufacturer: 1,
+              supplier: 1,
+              status: 1,
+              createdAt: 1,
+              updatedAt: 1
+            }
+          }
+        }
+      ]);
+
+      if (!result.length) {
+        throw new BadRequestException('Solicitud de mantenimiento no encontrada');
+      }
+
+      return result[0];
     } catch (error) {
-      console.error(`Error al enviar notificación a Telegram para la solicitud ${solicitud.trackingNumber}:`, error);
+      this.handleError(error, 'Error al consultar la solicitud de mantenimiento');
     }
   }
-}  
+
+  private handleError(error: any, defaultMessage: string) {
+    if (error instanceof BadRequestException) {
+      throw error;
+    }
+    console.error(defaultMessage, error);
+    throw new BadRequestException(defaultMessage);
+  }
+}
