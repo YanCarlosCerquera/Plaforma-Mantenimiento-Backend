@@ -22,8 +22,6 @@
   import { MaintenanceModule } from './Maintenance/maintenance/maintenance.module';
   import { ActionLogModule } from './parametrization/action-log/action-log.module';
   import { WorkReportModule } from './Maintenance/work_report/work_report.module';
-  import { SmsModule } from './Maintenance/application-maintenance/sms.module';
-  import { InfobipService } from './Maintenance/application-maintenance/sms.service';
   import { HttpModule } from '@nestjs/axios';
   import { WssModule } from './Maintenance/application-maintenance/wss.module';
   import { ConfigModule } from './Parametrization/config/config.module';
@@ -88,10 +86,9 @@
       WordOrdenModule,
       MaintenanceModule,
       WorkReportModule,
-      SmsModule,
       WssModule,
     ],
     controllers: [AppController],
-    providers: [AppService, InfobipService],
+    providers: [AppService],
   })
   export class AppModule { }

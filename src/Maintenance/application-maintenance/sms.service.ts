@@ -1,4 +1,4 @@
-import { HttpService } from '@nestjs/axios';
+/* import { HttpService } from '@nestjs/axios';
 import { Injectable } from '@nestjs/common';
 import { lastValueFrom } from 'rxjs';
 import { ConfigService } from 'src/Parametrization/config/config.service';
@@ -53,3 +53,4 @@ export class InfobipService {
     }
   }
 }
+ */

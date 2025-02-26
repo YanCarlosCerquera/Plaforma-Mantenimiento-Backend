@@ -67,7 +67,7 @@ export class WorkReportService extends GenericService<WorkReport, CreateWorkRepo
   
   private extractNumber(text: string, regex: RegExp): number {
     const match = text.match(regex);
-    return match ? parseFloat(match[1]) : 0; // Retorna 0 si no encuentra coincidencia
+    return match ? parseFloat(match[1]) : 0;
   }
   
   private extractBoolean(text: string, regex: RegExp): boolean {

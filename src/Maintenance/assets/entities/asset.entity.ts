@@ -18,7 +18,7 @@ export class Assets extends Document {
   location: string;
 
   @Prop({ required: true })
-  acquisitionDate: string;
+  acquisitionDate: Date;
 
   @Prop({ required: true })
   brand: string;
@@ -60,6 +60,12 @@ export class Assets extends Document {
 
   @Prop({ required: true })
   status: boolean;
+
+  @Prop()
+calendarEventLink?: string;
+
+@Prop()
+meetLink: string
 }
 
 export const AssetsSchema = SchemaFactory.createForClass(Assets);

@@ -35,14 +35,28 @@ export class UsersController extends GenericController<User, CreateUserDto, Upda
     return await this.usersService.findAll(filters)
   }
 
+
+
+  @Get('Tecnicos')
+  async findAllTechnical() {
+    try {
+      const technicians = await this.usersService.findAllTechnical();
+      return {
+        success: true,
+        data: technicians,
+        message: `Se encontraron ${technicians.length} técnicos`
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Error al obtener los técnicos'
+      };
+    }
+  }
+
   @Get(':id')
   @Roles()
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
-  }
-
-  @Get('technicals')
-  async findAllTecnhnical() {
-    return await this.usersService.findAllTecnhnical()
   }
 }

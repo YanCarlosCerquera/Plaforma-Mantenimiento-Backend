@@ -10,7 +10,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { User } from 'src/users/entities/user.entity';
 import { Model } from 'mongoose';
 import { RegistroDto } from './dto/RegistroDto';
-import { InfobipService } from 'src/Maintenance/application-maintenance/sms.service';
 import { UltraMsgService } from 'src/Maintenance/application-maintenance/Wss.service';
 
 @Injectable()
@@ -20,7 +19,6 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly mailerService: MailerService,
     private readonly rolService: RolService,
-    private readonly smsService : InfobipService,
     private readonly wssserive : UltraMsgService,
     @InjectModel(User.name) private userModel : Model<User>
   ) { }
@@ -263,6 +261,8 @@ const messaje = await this.userService.FindByPhone(phone);
     await user.save();
 
   }
+
+  
   async verificarCodigoRecuperacion(userId: string, code: string): Promise<boolean> {
     const user = await this.userService.findOne(userId);
   
