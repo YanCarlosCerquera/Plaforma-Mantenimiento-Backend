@@ -1,60 +1,68 @@
 import { Injectable } from '@nestjs/common';
-import { CreateAssetDto } from './dto/create-asset.dto';
-import { UpdateAssetDto } from './dto/update-asset.dto';
-import { GenericService } from 'src/Generic/generic.service';
-import { Assets, AssetsDocument } from './entities/asset.entity';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { GenericService } from 'src/Generic/generic.service';
 import { Category } from '../categories/entities/category.entity';
+import { CreateAssetDto } from './dto/create-asset.dto';
+import { UpdateAssetDto } from './dto/update-asset.dto';
+import { Assets, AssetsDocument } from './entities/asset.entity';
 
 @Injectable()
-export class AssetsService extends GenericService<Assets , CreateAssetDto , UpdateAssetDto>{
-  constructor(@InjectModel(Assets.name) private AssetsModel : Model <AssetsDocument>,
-  @InjectModel(Category.name) private categoryModel: Model<Category>
+export class AssetsService extends GenericService<Assets, CreateAssetDto, UpdateAssetDto> {
+  constructor(@InjectModel(Assets.name) private AssetsModel: Model<AssetsDocument>,
+    @InjectModel(Category.name) private categoryModel: Model<Category>
 
 
-){
+  ) {
     super(AssetsModel)
   }
 
-async create(createDto: CreateAssetDto): Promise<Assets> {
+  async create(createDto: CreateAssetDto): Promise<Assets> {
     const createdItem = new this.AssetsModel(createDto);
     return await createdItem.save();
-}
+  }
 
 
   async findOne(id: string): Promise<Assets> {
     return await this.AssetsModel.findById(id)
-      .populate({ 
-        path: 'trainingCenterId',       
-        select: 'name',                   
+      .populate({
+        path: 'trainingCenterId',
+        select: 'name',
       })
-      .populate ({
+      .populate({
         path: 'categoryId',
-        select:'name operationVars  accessories  '
+        select: 'name operationVars  accessories  '
       })
       .exec();
   }
-  
+
   async findAll(): Promise<Assets[]> {
     return await this.AssetsModel.find()
       .populate({
-        path: 'trainingCenterId',        
-        select: 'name',                  
+        path: 'trainingCenterId',
+        select: 'name',
       })
-      .populate ({
+      .populate({
         path: 'categoryId',
-        select:'name operationVars  accessories  '
+        select: 'name operationVars  accessories  '
       })
       .exec();
   }
-  
+
+
+  async InventotyCode(code: string): Promise<Assets | null> {
+    return await this.AssetsModel.findOne({ inventoryCode: code })
+      .select('-image')
+      .exec();
+  }
+
+
 
   async getAssetCountByCategory(): Promise<{ category: string; count: number }[]> {
     const result = await this.AssetsModel.aggregate([
       {
         $lookup: {
-          from: 'categories', 
+          from: 'categories',
           localField: 'categoryId',
           foreignField: '_id',
           as: 'category'
