@@ -51,9 +51,8 @@ export class AssetsService extends GenericService<Assets, CreateAssetDto, Update
 
 
   async InventotyCode(code: string): Promise<Assets | null> {
-    return await this.AssetsModel.findOne({ inventoryCode: code })
-      .select('-image')
-      .exec();
+    return await this.AssetsModel.findOne({ inventoryCode: code }).populate('trainingCenterId', 'name')
+    .exec();
   }
 
 
