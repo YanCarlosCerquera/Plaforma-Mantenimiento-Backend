@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model, RootFilterQuery, Types } from 'mongoose';
 import { CreateApplicationMaintenanceDto } from './dto/create-application-maintenance.dto';
 import { UpdateApplicationMaintenanceDto } from './dto/update-application-maintenance.dto';
 import { GenericService } from 'src/Generic/generic.service';
@@ -17,7 +17,7 @@ export class ApplicationMaintenanceService extends GenericService<MaintenanceReq
     @InjectModel(Assets.name) private readonly assetModel: Model<Assets>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(Rol.name) private readonly roleModel: Model<Rol>,
-    private readonly notificationService: NotificationService
+    private readonly notificationService: NotificationService,
   ) {
     super(maintenanceModel);
   }
@@ -273,4 +273,18 @@ export class ApplicationMaintenanceService extends GenericService<MaintenanceReq
     console.error(defaultMessage, error);
     throw new BadRequestException(defaultMessage);
   }
+
+  async getMaintenanceStatistics(): Promise<{}>{
+    const allMaintenance = await this.maintenanceModel.find().exec();
+    const total = allMaintenance.length;
+    const completed = allMaintenance.filter(m => m.workOrderStatus === true).length;
+    const pending = allMaintenance.filter(m => m.workOrderStatus === false).length;
+
+    return {
+      All: total,
+      Executed: completed,
+      Pending: pending
+    };
+  }
+
 }

@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document, Types } from "mongoose";
+import mongoose, { Document, Types } from "mongoose";
 import { OrdenesTrabajo } from "src/Maintenance/word_orden/entities/word_orden.entity";
 
 @Schema({timestamps : true})
@@ -21,7 +21,7 @@ export class WorkReport extends Document {
     @Prop({ })
     workDone: string; 
 
-    @Prop({ type: Types.ObjectId, ref: 'OrdenesTrabajo', required: true })
+    @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'OrdenesTrabajo', required: true })
     orderId: OrdenesTrabajo;
   
     @Prop({ required: true })

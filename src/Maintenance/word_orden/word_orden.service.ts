@@ -28,7 +28,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
     // Buscar órdenes de trabajo expiradas
     const expiredOrders = await this.OrdenModel.find({
       fechaFin: { $lt: now }, // FechaFin es menor que la fecha actual
-      state: true, // Solo órdenes activas
+      state: false, // Solo órdenes activas
     });
 
     for (const order of expiredOrders) {
@@ -38,7 +38,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       await order.save();
 
       // Actualizar el estado de la solicitud asociada a false
-      await this.maintenanceModel.findByIdAndUpdate(order.solicitud.solicitudId, { workOrderStatus: false });
+      await this.maintenanceModel.findByIdAndUpdate(order.solicitud, { workOrderStatus: false });
     }
 
     console.log(`Órdenes expiradas actualizadas: ${expiredOrders.length}`);
@@ -46,18 +46,18 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
 
   private async validateWorkOrder(createDto: CreateWordOrdenDto): Promise<void> {
     // Validar que la solicitud existe
-    const solicitud = await this.maintenanceModel.findById(createDto.solicitud.solicitudId);
+    const solicitud = await this.maintenanceModel.findById(createDto.solicitud);
     if (!solicitud) {
       throw new BadRequestException('La solicitud de mantenimiento no existe');
     }
 
     // Validar que no exista una orden de trabajo para esta solicitud
     const existingWorkOrder = await this.OrdenModel.findOne({
-      'solicitud.solicitudId': createDto.solicitud.solicitudId
+      'solicitud': createDto.solicitud
     });
 
     if (existingWorkOrder) {
-      throw new BadRequestException(`Ya existe una orden de trabajo para la solicitud ${createDto.solicitud.solicitudId}`);
+      throw new BadRequestException(`Ya existe una orden de trabajo para la solicitud ${createDto.solicitud}`);
     }
 
     // Validar que el técnico existe
@@ -79,7 +79,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
 
       // Actualizar el estado de la solicitud
       await this.maintenanceModel.findByIdAndUpdate(
-        createDto.solicitud.solicitudId,
+        createDto.solicitud,
         { workOrderStatus: true }
       );
 
@@ -114,5 +114,17 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       })
       .lean()
       .exec() as Promise<OrdenesTrabajo[]>;
+  }
+
+  async getWorkOrdenstatics(): Promise<{}> {
+    const totalOrders = await this.OrdenModel.find().exec();
+    const executedOrders = totalOrders.filter(order => order.state === true).length;
+    const expiredOrders = totalOrders.filter(order => new Date(order.fechaFin) < new Date() && order.state === false).length;
+
+    return {
+      All: totalOrders.length,
+      Executed: executedOrders,
+      Expired: expiredOrders,
+    };
   }
 }

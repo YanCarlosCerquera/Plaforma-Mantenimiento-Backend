@@ -71,6 +71,7 @@ export class ActionLogInterceptor implements NestInterceptor {
       case 'POST':
         return `Agregó ${action}`;
       case 'PUT':
+        return `Actualizó ${action}`;
       case 'PATCH':
         return `Actualizó ${action}`;
       case 'DELETE':

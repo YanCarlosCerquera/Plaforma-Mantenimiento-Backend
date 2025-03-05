@@ -12,7 +12,7 @@ export class AuthController {
   ) { }
 
   @Public()
-  @Post('     ')
+  @Post('registro')
   async registro(@Body() registroDto: RegistroDto) {
     try {
       const registrado = await this.authService.Registro(registroDto);

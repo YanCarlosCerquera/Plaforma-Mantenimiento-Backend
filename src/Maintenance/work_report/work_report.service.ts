@@ -8,10 +8,11 @@ import { GenericService } from 'src/Generic/generic.service';
 import * as pdf from 'pdf-parse';
 import path from 'path';
 import { match } from 'assert';
+import { MaintenanceRequest } from '../application-maintenance/entities/application-maintenance.entity';
 
 @Injectable()
 export class WorkReportService extends GenericService<WorkReport, CreateWorkReportDto, UpdateWorkReportDto> {
-  constructor(@InjectModel(WorkReport.name) private workReportModel: Model<WorkReport>) {
+  constructor(@InjectModel(WorkReport.name) private workReportModel: Model<WorkReport>, @InjectModel(MaintenanceRequest.name) private readonly maintenanceModel: Model<MaintenanceRequest>) {
     super(workReportModel);
   }
 
@@ -75,18 +76,28 @@ export class WorkReportService extends GenericService<WorkReport, CreateWorkRepo
     return match ? match[1].toLowerCase() === 'true' : false;
   }
 
-  async maintenanceHistory(serialNumber: string){
-    return await this.workReportModel.find().populate({
-      path: 'orderId',
-      select: 'radicado',
-      match: { state: true},
-      populate: {
-        path: 'solicitud.solicitudId',
-        select: 'maintenanceType',
-        match: {serialNumber: serialNumber}
-      }
-    }).exec().then(results => {
-      return results.filter(workReport => workReport.orderId?.solicitud?.solicitudId);
-  });
-  }
+  async maintenanceHistory(serialNumber: string) {
+    const workReports = await this.workReportModel
+        .find()
+        .populate({
+            path: 'orderId',
+            select: 'radicado solicitud',
+            match: { state: true },
+            populate: {
+                path: 'solicitud',
+                select: 'serialNumber maintenanceType',
+                model: 'MaintenanceRequest'
+            }
+        })
+        .sort({ createdAt: -1 }) 
+        .exec();
+        
+    const filteredReports = workReports.filter(workReport => 
+        workReport.orderId?.solicitud && 
+        workReport.orderId.solicitud.serialNumber === serialNumber
+    );
+
+    return filteredReports;
+}
+
 }  

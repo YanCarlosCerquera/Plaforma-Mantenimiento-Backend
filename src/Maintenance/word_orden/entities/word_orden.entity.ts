@@ -28,10 +28,8 @@ export class OrdenesTrabajo extends Document {
 required: true })
   prioridad: string;
 
-  @Prop({ type: Object, required: true  , ref:'MaintenanceRequest' })
-  solicitud:{
-    solicitudId: ObjectId
-  };
+  @Prop({ type: mongoose.Schema.Types.ObjectId, required: true  , ref:'MaintenanceRequest' })
+  solicitud: MaintenanceRequest;
 
   @Prop({ type: Boolean, default: true })
   state   : boolean;

@@ -21,4 +21,9 @@ export class WordOrdenController extends GenericController <OrdenesTrabajo , Cre
     return 'Órdenes vencidas actualizadas correctamente';
   }
 
+  @Get('statics')
+  async getStatics() {
+    return this.wordOrdenService.getWorkOrdenstatics();
+  }
+
 }
