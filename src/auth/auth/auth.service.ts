@@ -38,19 +38,11 @@ export class AuthService {
     // Encriptar la contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
   
-    const defaultRolId = '674894abd8a183de563a2f48';
-    let rolId;
-    if (assignedRol && assignedRol) {
-      rolId = assignedRol;
-    } else {
-      rolId = defaultRolId;
-    }
     const defaultCargo = 'Developer';
   
     const userToCreate = {
       ...registroDto,
       password: hashedPassword,
-      assignedRol: defaultRolId,
     };
   
     const newUser = new this.userModel(userToCreate);
@@ -60,36 +52,36 @@ export class AuthService {
 
 
   async login(loginDto: LoginDto): Promise<object> {
+    // Validar si el usuario existe
     const user = await this.userService.authentication(loginDto.document, loginDto.typeDocument);
-  
     if (!user) {
       throw new UnauthorizedException('El documento o tipo de documento no existe');
     }
   
+    // Validar la contraseña
     const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
-  
     if (!isPasswordValid) {
       throw new UnauthorizedException('La contraseña es incorrecta');
     }
   
-    let menu ={}
-    if (user.assignedRol && user.assignedRol) {
-      const rolId = user.assignedRol.toString();
-      menu = await this.rolService.menu(rolId);
-console.log(rolId);
-
-
-      
-    } else {
-      console.warn(`User ${user._id} does not have an assigned role or role ID.`);
+    // Verificar que el usuario tenga asignado un rol
+    if (!user.assignedRol) {
+      throw new UnauthorizedException('El usuario no tiene un rol asignado. Por favor, contacte al administrador.');
     }
-    
-    const payload =  {sub: user._id, email: user.email };
+  
+    // Obtener el menú según el rol asignado
+    const rolId = user.assignedRol.toString();
+    const menu = await this.rolService.menu(rolId);
+    console.log('Rol ID:', rolId);
+  
+    // Generar el token
+    const payload = { sub: user._id, email: user.email };
     return {
       access_token: this.jwtService.sign(payload),
       menu: menu
     };
   }
+  
 
   async iniciarRecuperacionContrasena(typeDocument: string, numberDocument: string ): Promise<String> {
     const user = await this.userService.findByDocumento(typeDocument, numberDocument);

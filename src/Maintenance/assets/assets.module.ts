@@ -5,7 +5,6 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Assets, AssetsSchema } from './entities/asset.entity';
 import { MulterModule } from '@nestjs/platform-express';
 import { CategoriesModule } from '../categories/categories.module';
-import { GoogleModule } from './service/google.module';
 import { WorkReportModule } from '../work_report/work_report.module';
 
 @Module({
@@ -15,7 +14,6 @@ import { WorkReportModule } from '../work_report/work_report.module';
       dest: './uploads/assets',
     }),
     CategoriesModule,
-    GoogleModule,
     forwardRef(() => WorkReportModule), 
   ],
   controllers: [AssetsController],

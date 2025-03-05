@@ -15,3 +15,4 @@ import { ApplicationMaintenanceModule } from '../application-maintenance/applica
   exports: [WorkReportService],
 })
 export class WorkReportModule {}
+

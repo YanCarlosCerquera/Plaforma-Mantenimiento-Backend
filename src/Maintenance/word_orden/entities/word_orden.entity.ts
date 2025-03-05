@@ -1,14 +1,12 @@
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Document, ObjectId } from 'mongoose';
-import { Types } from 'mongoose';
+import mongoose, { Document, Types } from 'mongoose';
 import { MaintenanceRequest } from 'src/Maintenance/application-maintenance/entities/application-maintenance.entity';
-import { Maintenance } from 'src/Maintenance/maintenance/entities/maintenance.entity';
 import { User } from 'src/users/entities/user.entity';
+import { Maintenance } from 'src/Maintenance/maintenance/entities/maintenance.entity';
 
 @Schema({ timestamps: true }) 
 export class OrdenesTrabajo extends Document {
-
-  @Prop({ type: String, required: true , unique:true})
+  @Prop({ type: String, required: true, unique: true })
   radicado: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
@@ -23,20 +21,38 @@ export class OrdenesTrabajo extends Document {
   @Prop({ type: Date })
   fechaFin: Date;
 
-  @Prop({ type: String, 
-  enum: ['alta', 'media', 'baja','Sin Terminar'],
-required: true })
+  @Prop({ 
+    type: String, 
+    enum: ['alta', 'media', 'baja', 'Sin Terminar'],
+    required: true 
+  })
   prioridad: string;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, required: true  , ref:'MaintenanceRequest' })
   solicitud: MaintenanceRequest;
 
+  
+
   @Prop({ type: Boolean, default: true })
-  state   : boolean;
+  state: boolean;
 
   @Prop({ type: Date, default: null })
   deletedAt: Date;
+
+  maintenances?: Maintenance[];
+
 }
 
 export const OrdenesTrabajoSchema = SchemaFactory.createForClass(OrdenesTrabajo);
+
+OrdenesTrabajoSchema.virtual('maintenances', {
+  ref: 'Maintenance',
+  localField: '_id',
+  foreignField: 'wordOrdenId',
+});
+
+// 🔹 Habilitar virtuals en las conversiones JSON y objeto
+OrdenesTrabajoSchema.set('toObject', { virtuals: true });
+OrdenesTrabajoSchema.set('toJSON', { virtuals: true });
+
 export type OrdenDocument = OrdenesTrabajo & Document;

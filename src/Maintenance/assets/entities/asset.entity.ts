@@ -63,12 +63,6 @@ export class Assets extends Document {
 
   @Prop({ required: true })
   status: boolean;
-
-  @Prop()
-calendarEventLink?: string;
-
-@Prop()
-meetLink: string
 }
 
 export const AssetsSchema = SchemaFactory.createForClass(Assets);
