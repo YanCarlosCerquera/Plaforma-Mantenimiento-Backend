@@ -24,7 +24,7 @@ export class ApplicationMaintenanceService extends GenericService<MaintenanceReq
 
   async create(createDto: CreateApplicationMaintenanceDto): Promise<MaintenanceRequest> {
     try {
-      // Validar y crear la solicitud
+     
       await this.validateSerialNumber(createDto);
       const createdRequest = await this.createMaintenanceRequest(createDto);
       

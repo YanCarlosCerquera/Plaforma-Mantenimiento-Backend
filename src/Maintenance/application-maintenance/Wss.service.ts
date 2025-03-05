@@ -6,8 +6,8 @@ import { ConfigService } from 'src/Parametrization/config/config.service';
 @Injectable()
 export class UltraMsgService {
   private readonly apiBaseUrl = 'https://api.ultramsg.com';
-  private readonly instance = 'instance101167';
-  private readonly token = 'jorbc87xr2ljyjcv'; // Token proporcionado por UltraMsg
+  private readonly instance = 'instance109127';
+  private readonly token = '3oh314mu1xhnz3ka';
 
   constructor(private readonly httpService: HttpService) {}
 
