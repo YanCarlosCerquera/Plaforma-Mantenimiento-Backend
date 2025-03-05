@@ -30,14 +30,12 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
   async updateExpiredOrders(): Promise<void> {
     const now = new Date()
 
-    // Buscar órdenes de trabajo expiradas
     const expiredOrders = await this.OrdenModel.find({
       fechaFin: { $lt: now }, // FechaFin es menor que la fecha actual
       state: false, // Solo órdenes activas
     });
 
     for (const order of expiredOrders) {
-      // Actualizar el estado de la orden de trabajo a false
       order.state = false
       order.prioridad = "Sin Terminar"
       await order.save()
