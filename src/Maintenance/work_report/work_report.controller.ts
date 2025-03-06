@@ -12,16 +12,9 @@ export class WorkReportController extends GenericController<WorkReport , CreateW
   constructor(private readonly workReportService: WorkReportService) {
     super(workReportService)
   }     
-  @Post('upload-pdf/:orderId')
-  @UseInterceptors(FileInterceptor('file'))
-  async uploadPdf(
-    @UploadedFile() file: Express.Multer.File, 
-    @Param('orderId') orderId: Types.ObjectId 
-  ) {
-    if (!file) {
-      throw new BadRequestException('No file uploaded'); 
-    }
-    return this.workReportService.createFromPDF(file.buffer, orderId); 
+  @Get("Informes")
+  async obtenerInformes() {
+    return await this.workReportService.obtenerInformesConDetalles();
   }
 
   @Get('maintenanceHistory/:serialNumber')

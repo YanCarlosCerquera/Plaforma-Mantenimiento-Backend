@@ -8,6 +8,9 @@ export class CreateWorkReportDto {
   @IsNumber()
   costs: number; 
 
+  @IsString()
+  Informe: string;
+
   @IsNumber()
   hours: number; 
 

@@ -41,7 +41,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       await order.save()
 
       // Actualizar el estado de la solicitud asociada a false
-      await this.maintenanceModel.findByIdAndUpdate(order.solicitud.solicitudId, { workOrderStatus: false })
+      await this.maintenanceModel.findByIdAndUpdate(order.solicitud, { workOrderStatus: false })
     }
 
     console.log(`Órdenes expiradas actualizadas: ${expiredOrders.length}`)
@@ -49,19 +49,19 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
 
   private async validateWorkOrder(createDto: CreateWordOrdenDto): Promise<void> {
     // Validar que la solicitud existe
-    const solicitud = await this.maintenanceModel.findById(createDto.solicitud.solicitudId)
+    const solicitud = await this.maintenanceModel.findById(createDto.solicitud)
     if (!solicitud) {
       throw new BadRequestException("La solicitud de mantenimiento no existe")
     }
 
     // Validar que no exista una orden de trabajo para esta solicitud
     const existingWorkOrder = await this.OrdenModel.findOne({
-      "solicitud.solicitudId": createDto.solicitud.solicitudId,
+      "solicitud.solicitudId": createDto.solicitud,
     })
 
     if (existingWorkOrder) {
       throw new BadRequestException(
-        `Ya existe una orden de trabajo para la solicitud ${createDto.solicitud.solicitudId}`,
+        `Ya existe una orden de trabajo para la solicitud ${createDto.solicitud}`,
       )
     }
 
@@ -83,7 +83,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       const savedItem = await createdItem.save()
 
       // Actualizar el estado de la solicitud
-      await this.maintenanceModel.findByIdAndUpdate(createDto.solicitud.solicitudId, { workOrderStatus: true })
+      await this.maintenanceModel.findByIdAndUpdate(createDto.solicitud, { workOrderStatus: true })
 
       return savedItem
     } catch (error) {
@@ -225,7 +225,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
         fechaFin: orden.fechaFin,
         prioridad: orden.prioridad,
         solicitud: {
-          solicitudId: orden.solicitud.solicitudId.toString(),
+          solicitudId: orden.solicitud.toString(),
         },
         estado: orden.state,
         fechaCreacion: orden.fechaFin,

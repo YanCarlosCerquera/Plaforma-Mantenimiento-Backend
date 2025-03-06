@@ -2,11 +2,7 @@ import { IsNotEmpty, IsDate, IsEnum, IsMongoId, ValidateNested, IsOptional, IsBo
 import { Type } from 'class-transformer';
 import { ObjectId, Types } from 'mongoose';
 
-class SolicitudDto {
-  @IsMongoId()
-  @IsNotEmpty()
-  solicitudId: ObjectId;
-}
+
 
 
 export class CreateWordOrdenDto {
@@ -36,9 +32,8 @@ export class CreateWordOrdenDto {
   prioridad: string;
 
   @ValidateNested()
-  @Type(() => SolicitudDto)
   @IsNotEmpty()
-  solicitud: SolicitudDto;
+  solicitud: Types.ObjectId;
 
   @IsBoolean()
   @IsOptional()

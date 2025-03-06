@@ -29,51 +29,40 @@ export class WorkReportService extends GenericService<WorkReport, CreateWorkRepo
     }).exec();
   }
 
-  async createFromPDF(pdfBuffer: Buffer, orderId: Types.ObjectId): Promise<WorkReport> {
-    try {
-      const data = await pdf(pdfBuffer);
-      console.log('Texto extraído del PDF:', data.text); // Agrega este log
-      const workReportData = this.extractDataFromPDF(data.text, orderId);
-      return this.create(workReportData);
-    } catch (error) {
-      throw new BadRequestException(`Failed to process PDF: ${error.message}`);
-    }
+  async obtenerInformesConDetalles(): Promise<any[]> {
+    const informes = await this.workReportModel
+      .find()
+      .populate({
+        path: 'orderId',
+        populate: [
+          {
+            path: 'solicitud',
+            model: 'MaintenanceRequest',
+            select: 'InventoryCode',
+          },
+          {
+            path: 'tecnicoId',
+            model: 'User',
+            select: 'name',
+          },
+        ],
+      })
+      .select('Informe costs hours workDone orderId')
+      .lean();
+  
+    return informes.map((informe) => ({
+      Informe: informe.Informe,
+      'CodigoInventario': informe.orderId?.solicitud
+        ? (informe.orderId.solicitud as any).InventoryCode
+        : null,
+      Horas: informe.hours,
+      Costos: informe.costs,
+      'TrabajoRealizado': informe.workDone,
+      'Ejecutado Por': informe.orderId?.tecnicoId?.name || null,
+    }));
   }
   
-  private extractDataFromPDF(text: string, orderId: Types.ObjectId): CreateWorkReportDto {
-    const costs = this.extractNumber(text, /Costs:\s*\$?(\d+(\.\d+)?)/);
-    const hours = this.extractNumber(text, /Hours:\s*(\d+(\.\d+)?)/);
-    const responses = this.extractField(text, /Responses:\s*(.+)/);
-    const observation = this.extractField(text, /Observation:\s*(.+)/);
-    const workDone = this.extractField(text, /Work Done:\s*(.+)/);
-    const status = this.extractField(text, /Status:\s*(.+)/).toLowerCase() === 'completed';
-    
 
-    return {
-      costs,
-      hours,
-      responses,
-      observation,
-      workDone,
-      orderId,
-      status,
-    };
-  }
-
-  private extractField(text: string, regex: RegExp): string {
-    const match = text.match(regex);
-    return match ? match[1].trim() : '';
-  }
-  
-  private extractNumber(text: string, regex: RegExp): number {
-    const match = text.match(regex);
-    return match ? parseFloat(match[1]) : 0;
-  }
-  
-  private extractBoolean(text: string, regex: RegExp): boolean {
-    const match = text.match(regex);
-    return match ? match[1].toLowerCase() === 'true' : false;
-  }
 
   async maintenanceHistory(serialNumber: string){
     return await this.workReportModel.find().populate({
@@ -81,12 +70,12 @@ export class WorkReportService extends GenericService<WorkReport, CreateWorkRepo
       select: 'radicado',
       match: { state: true},
       populate: {
-        path: 'solicitud.solicitudId',
+        path: 'solicitud  ',
         select: 'maintenanceType',
         match: {serialNumber: serialNumber}
       }
     }).exec().then(results => {
-      return results.filter(workReport => workReport.orderId?.solicitud?.solicitudId);
+      return results.filter(workReport => workReport.orderId?.solicitud);
   });
   }
 }  

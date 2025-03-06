@@ -5,7 +5,9 @@ import { OrdenesTrabajo } from "src/Maintenance/word_orden/entities/word_orden.e
 @Schema({timestamps : true})
 export class WorkReport extends Document {
 
-  
+    @Prop({})
+    Informe : string;
+
     @Prop({ })
     costs: number; 
   

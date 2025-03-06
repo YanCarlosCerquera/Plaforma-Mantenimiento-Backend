@@ -29,9 +29,7 @@ export class OrdenesTrabajo extends Document {
   prioridad: string;
 
   @Prop({ type: Types.ObjectId, required: true, ref: 'MaintenanceRequest' })
-  solicitud: {
-    solicitudId: Types.ObjectId;
-  };
+  solicitud: Types.ObjectId;
 
   
 
