@@ -14,10 +14,10 @@ import { WorkReportModule } from "../work_report/work_report.module"
   imports: [
     MongooseModule.forFeature([{ name: OrdenesTrabajo.name, schema: OrdenesTrabajoSchema }]),
     ApplicationMaintenanceModule,
-    UsersModule,
-    AssetsModule,
+    forwardRef(() =>UsersModule),
+    forwardRef(() =>AssetsModule),
     forwardRef(() => MaintenanceModule), 
-    WorkReportModule,
+    forwardRef(() =>WorkReportModule),
     ScheduleModule.forRoot(),
   ],
   controllers: [WordOrdenController],

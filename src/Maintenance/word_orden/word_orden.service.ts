@@ -33,7 +33,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
     const expiredOrders = await this.OrdenModel.find({
       fechaFin: { $lt: now }, // FechaFin es menor que la fecha actual
       state: false, // Solo órdenes activas
-    });
+    })
 
     for (const order of expiredOrders) {
       order.state = false
@@ -41,7 +41,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       await order.save()
 
       // Actualizar el estado de la solicitud asociada a false
-      await this.maintenanceModel.findByIdAndUpdate(order.solicitud, { workOrderStatus: false });
+      await this.maintenanceModel.findByIdAndUpdate(order.solicitud, { workOrderStatus: false })
     }
 
     console.log(`Órdenes expiradas actualizadas: ${expiredOrders.length}`)
@@ -49,18 +49,20 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
 
   private async validateWorkOrder(createDto: CreateWordOrdenDto): Promise<void> {
     // Validar que la solicitud existe
-    const solicitud = await this.maintenanceModel.findById(createDto.solicitud);
+    const solicitud = await this.maintenanceModel.findById(createDto.solicitud)
     if (!solicitud) {
       throw new BadRequestException("La solicitud de mantenimiento no existe")
     }
 
     // Validar que no exista una orden de trabajo para esta solicitud
     const existingWorkOrder = await this.OrdenModel.findOne({
-      'solicitud': createDto.solicitud
-    });
+      "solicitud.solicitudId": createDto.solicitud,
+    })
 
     if (existingWorkOrder) {
-      throw new BadRequestException(`Ya existe una orden de trabajo para la solicitud ${createDto.solicitud}`);
+      throw new BadRequestException(
+        `Ya existe una orden de trabajo para la solicitud ${createDto.solicitud}`,
+      )
     }
 
     // Validar que el técnico existe
@@ -81,10 +83,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       const savedItem = await createdItem.save()
 
       // Actualizar el estado de la solicitud
-      await this.maintenanceModel.findByIdAndUpdate(
-        createDto.solicitud,
-        { workOrderStatus: true }
-      );
+      await this.maintenanceModel.findByIdAndUpdate(createDto.solicitud, { workOrderStatus: true })
 
       return savedItem
     } catch (error) {
@@ -106,8 +105,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       .populate("tecnicoId", "name")
       .populate("instructorId", "name")
       .populate({
-        path: "solicitud.solicitudIdc",
-        model: this.assetModel,
+        path: "solicitud",
         select: "serialNumber",
         populate: {
           path: "serialNumber",
@@ -133,22 +131,159 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
     return orden
   }
 
-  async findAllWithDetails(): Promise<OrdenesTrabajo[]> {
-    return this.OrdenModel.find({})
-      .populate("tecnicoId", "name")
-      .populate("instructorId", "name")
-      .populate({
-        path: "solicitud.solicitudId",
-        model: this.assetModel,
-        select: "serialNumber",
-        populate: {
-          path: "serialNumber",
-          model: this.assetModel,
-          select: "name",
-        },
+  async findAllWithDetails(instructorId?: string, tecnicoId?: string): Promise<OrdenesTrabajo[]> {
+    const query: any = {};
+
+    if (instructorId) {
+        query.instructorId = instructorId;
+    }
+
+    if (tecnicoId) {
+        query.tecnicoId = tecnicoId;
+    }
+
+    const ordenes = await this.OrdenModel.find(query)
+        .populate("tecnicoId", "name")
+        .populate("instructorId", "name")
+        .populate({
+            path: "solicitud",
+            select: "serialNumber",
+        })
+        .lean()
+        .exec();
+
+    for (const orden of ordenes) {
+        if (orden.solicitud && orden.solicitud.serialNumber) {
+            const asset = await this.assetModel.findOne({ serialNumber: orden.solicitud.serialNumber }).select("name image location").lean();
+            (orden.solicitud as any).asset = asset;
+        }
+    }
+
+    return ordenes as OrdenesTrabajo[];
+}
+  /**
+   * Encuentra todas las órdenes de trabajo asignadas a un técnico específico
+   * @param userId - ID del usuario a verificar
+   * @returns Promise con array de órdenes de trabajo
+   */
+
+  async findAllTecnico(userId: string): Promise<TecnicoOrdenesResponse> {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new NotFoundException("ID de usuario inválido")
+    }
+
+    const TECNICO_ROLE_ID = "674dc7135a622b0c8382078a"
+
+    const user = await this.userModel.findOne({
+      _id: userId,
+      assignedRol: TECNICO_ROLE_ID,
+      state: true,
+    })
+
+    if (!user) {
+      throw new NotFoundException(`Usuario con ID ${userId} no encontrado o no tiene el rol de técnico`)
+    }
+
+    const ordenes = await this.OrdenModel.find({
+      tecnicoId: userId,
+      state: true,
+    }).exec()
+
+    const ordenesIds = ordenes.map((orden) => orden._id)
+
+    const mantenimientos = await this.MantimientoModel.find({
+      wordOrdenId: { $in: ordenesIds },
+    }).exec()
+
+    const informes = await this.workReportModel
+      .find({
+        orderId: { $in: ordenesIds },
       })
-      .lean()
-      .exec() as Promise<OrdenesTrabajo[]>
+      .exec()
+
+    const mantenimientosPorOrden = new Map()
+    mantenimientos.forEach((mantenimiento) => {
+      const ordenId = mantenimiento.wordOrdenId.toString()
+      if (!mantenimientosPorOrden.has(ordenId)) {
+        mantenimientosPorOrden.set(ordenId, [])
+      }
+      mantenimientosPorOrden.get(ordenId).push(mantenimiento)
+    })
+
+    const informesPorOrden = new Map()
+    informes.forEach((informe) => {
+      const ordenId = informe.orderId.toString()
+      if (!informesPorOrden.has(ordenId)) {
+        informesPorOrden.set(ordenId, [])
+      }
+      informesPorOrden.get(ordenId).push(informe)
+    })
+
+    let totalMantenimientos = 0
+    let totalInformes = 0
+
+    const ordenesConDetalles = ordenes.map((orden) => {
+      const ordenId = orden._id.toString()
+      const mantenimientosDeOrden = mantenimientosPorOrden.get(ordenId) || []
+      const informesDeOrden = informesPorOrden.get(ordenId) || []
+
+      totalMantenimientos += mantenimientosDeOrden.length
+      totalInformes += informesDeOrden.length
+
+      return {
+        id: ordenId,
+        radicado: orden.radicado,
+        fechaInicio: orden.fechaInicio,
+        fechaFin: orden.fechaFin,
+        prioridad: orden.prioridad,
+        solicitud: {
+          solicitudId: orden.solicitud.toString(),
+        },
+        estado: orden.state,
+        fechaCreacion: orden.fechaFin,
+        fechaActualizacion: orden.fechaInicio,
+        mantenimientos: mantenimientosDeOrden.map((m) => ({
+          id: m._id.toString(),
+          tipo: m.typeMaintenance,
+          descripcion: m.description,
+          observacion: m.observation,
+          estadoRepuestos: m.sparePartsStatus,
+          detallesRepuestos: m.sparePartsDetails,
+          firmaDelTecnico: m.technicalSignature,
+          fechaCreacion: m.createdAt,
+        })),
+        informes: informesDeOrden.map((i) => ({
+          id: i._id.toString(),
+          costos: i.costs,
+          horas: i.hours,
+          respuestas: i.responses,
+          observacion: i.observation,
+          trabajoRealizado: i.workDone,
+          estado: i.status,
+          fechaCreacion: i.createdAt,
+        })),
+      }
+    })
+
+    const response: TecnicoOrdenesResponse = {
+      tecnico: {
+        id: user._id.toString(),
+        nombre: user.name,
+        email: user.email,
+        telefono: user.phone || "No disponible",
+        cargo: user.assignedPosition,
+        documento: {
+          tipo: user.typeDocument,
+          numero: user.numberDocument,
+        },
+      },
+      ordenes: ordenesConDetalles,
+      total: ordenes.length,
+      totalMantenimientos,
+      totalInformes,
+    }
+
+    return response
   }
 
   async getWorkOrdenstatics(): Promise<{}> {
@@ -160,6 +295,6 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       All: totalOrders.length,
       Executed: executedOrders,
       Expired: expiredOrders,
-    };
-  }
+    };
+  }
 }

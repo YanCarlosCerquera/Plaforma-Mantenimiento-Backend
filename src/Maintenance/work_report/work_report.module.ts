@@ -12,7 +12,7 @@ import { ApplicationMaintenanceModule } from '../application-maintenance/applica
   ],
   controllers: [WorkReportController],
   providers: [WorkReportService],
-  exports: [WorkReportService],
+  exports: [MongooseModule, WorkReportService],
 })
 export class WorkReportModule {}
 

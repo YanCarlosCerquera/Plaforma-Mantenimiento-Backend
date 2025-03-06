@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, BadRequestException, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, BadRequestException, UploadedFile, Query } from '@nestjs/common';
 import { WorkReportService } from './work_report.service';
 import { CreateWorkReportDto } from './dto/create-work_report.dto';
 import { UpdateWorkReportDto } from './dto/update-work_report.dto';
@@ -12,6 +12,16 @@ export class WorkReportController extends GenericController<WorkReport , CreateW
   constructor(private readonly workReportService: WorkReportService) {
     super(workReportService)
   }     
+
+  @Get() // Decorador para manejar solicitudes GET
+    findAllDetaills(
+        @Query('tecnicoId') tecnicoId?: string, // Parámetro opcional
+        @Query('instructorId') instructorId?: string, // Parámetro opcional
+    ) {
+        // Llamar al servicio con los parámetros opcionales
+        return this.workReportService.findAllDetails(tecnicoId, instructorId);
+    }
+
   @Post('upload-pdf/:orderId')
   @UseInterceptors(FileInterceptor('file'))
   async uploadPdf(
