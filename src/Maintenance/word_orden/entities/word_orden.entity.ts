@@ -9,10 +9,10 @@ export class OrdenesTrabajo extends Document {
   @Prop({ type: String, required: true, unique: true })
   radicado: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type:  mongoose.Schema.Types.ObjectId, ref: 'User', required: true })
   tecnicoId: User;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type:  mongoose.Schema.Types.ObjectId, ref: 'User', required: true })
   instructorId: User;
 
   @Prop({ type: Date, required: true })
@@ -28,10 +28,10 @@ export class OrdenesTrabajo extends Document {
   })
   prioridad: string;
 
-  @Prop({ type: Types.ObjectId, required: true, ref: 'MaintenanceRequest' })
-  solicitud: Types.ObjectId;
-
   
+  
+  @Prop({ type: mongoose.Schema.Types.ObjectId, required: true  , ref:'MaintenanceRequest' })
+  solicitud: MaintenanceRequest;
 
   @Prop({ type: Boolean, default: true })
   state: boolean;

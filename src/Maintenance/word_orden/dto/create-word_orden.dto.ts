@@ -5,6 +5,7 @@ import { ObjectId, Types } from 'mongoose';
 
 
 
+
 export class CreateWordOrdenDto {
   @IsNotEmpty()
   radicado: string;
@@ -32,6 +33,7 @@ export class CreateWordOrdenDto {
   prioridad: string;
 
   @ValidateNested()
+  @IsMongoId()
   @IsNotEmpty()
   solicitud: Types.ObjectId;
 

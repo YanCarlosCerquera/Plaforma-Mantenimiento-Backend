@@ -59,4 +59,9 @@ async consultarPorId(@Param('id') id: string){
   return result;
 }
 
+@Get('statics')
+async getStatics(){
+  return await this.applicationMaintenanceService.getMaintenanceStatistics();
+}
+
 }

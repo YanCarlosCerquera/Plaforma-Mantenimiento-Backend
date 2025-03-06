@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, NotFoundException, Query } from '@nestjs/common';
 import { WordOrdenService } from './word_orden.service';
 import { CreateWordOrdenDto } from './dto/create-word_orden.dto';
 import { UpdateWordOrdenDto } from './dto/update-word_orden.dto';
@@ -13,10 +13,19 @@ export class WordOrdenController extends GenericController <OrdenesTrabajo , Cre
     super(wordOrdenService);
   }
   
-  @Get()
-  findAllWithDetails() {
-    return this.wordOrdenService.findAllWithDetails();
-  }
+    @Get('statics')
+    async getStatics() {
+      return this.wordOrdenService.getWorkOrdenstatics();
+    }
+  
+    @Get() // Decorador para manejar solicitudes GET
+    findAllWithDetails(
+      @Query('instructorId') instructorId?: string,
+      @Query('tecnicoId') tecnicoId?: string,
+    ) {
+      return this.wordOrdenService.findAllWithDetails(instructorId, tecnicoId);
+    }
+
   @Get(":id")
   
     ListOne(@Param('id') id: string): Promise<OrdenesTrabajo[]> {
@@ -39,4 +48,5 @@ export class WordOrdenController extends GenericController <OrdenesTrabajo , Cre
       throw new NotFoundException('Error al buscar órdenes de trabajo');
     }
   }
-}  
+
+}

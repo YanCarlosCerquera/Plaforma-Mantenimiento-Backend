@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { ApplicationMaintenanceController } from './application-maintenance.controller';
 import { ApplicationMaintenanceService } from './application-maintenance.service';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -15,7 +15,7 @@ import { NotificationService } from './services/notification.service';
     MongooseModule.forFeature([
       { name: MaintenanceRequest.name, schema: MaintenanceRequestSchema }
     ]),
-    AssetsModule,
+    forwardRef(() => AssetsModule), // Agregar forwardRef
     UsersModule,
     RolModule,
     CategoriesModule,
@@ -26,6 +26,9 @@ import { NotificationService } from './services/notification.service';
     ApplicationMaintenanceService,
     NotificationService
   ],
-  exports: [MongooseModule],
+  exports: [
+    ApplicationMaintenanceService,
+    MongooseModule.forFeature([{ name: MaintenanceRequest.name, schema: MaintenanceRequestSchema }])
+  ],
 })
 export class ApplicationMaintenanceModule {}

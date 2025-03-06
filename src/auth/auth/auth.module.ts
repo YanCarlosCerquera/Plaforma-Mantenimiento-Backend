@@ -26,14 +26,14 @@ import { WssModule } from 'src/Maintenance/application-maintenance/wss.module';
   
   controllers: [AuthController],
   providers: [AuthService, 
-    /* {
+    {
       provide: APP_GUARD,
       useClass: AuthGuard, 
-    },|
+    },
     {
       provide: APP_GUARD,
       useClass: RoleGuard, 
-    }, */
+    }, 
   ],
 })
 export class AuthModule {}

@@ -8,19 +8,55 @@ import { GenericService } from 'src/Generic/generic.service';
 import * as pdf from 'pdf-parse';
 import path from 'path';
 import { match } from 'assert';
+import { MaintenanceRequest } from '../application-maintenance/entities/application-maintenance.entity';
 
 @Injectable()
 export class WorkReportService extends GenericService<WorkReport, CreateWorkReportDto, UpdateWorkReportDto> {
-  constructor(@InjectModel(WorkReport.name) private workReportModel: Model<WorkReport>) {
+  constructor(@InjectModel(WorkReport.name) private workReportModel: Model<WorkReport>, @InjectModel(MaintenanceRequest.name) private readonly maintenanceModel: Model<MaintenanceRequest>) {
     super(workReportModel);
   }
 
-  async findAll(): Promise<WorkReport[]> {
-    return await this.workReportModel.find().populate({
-      path: 'orderId',
-      select: 'radicado state',
-    }).exec();
-  }
+  async findAllDetails(tecnicoId?: string, instructorId?: string): Promise<WorkReport[]> {
+    // Obtener todos los WorkReport con el populate
+    const workReports = await this.workReportModel.find()
+        .populate({
+            path: 'orderId',
+            select: 'radicado state',
+            populate: [
+                {
+                    path: 'solicitud',
+                    select: 'InventoryCode',
+                },
+                {
+                    path: 'tecnicoId',
+                    select: 'name',
+                },
+                {
+                    path: 'instructorId',
+                    select: 'name',
+                }
+            ]
+        })
+        .exec();
+
+    return workReports.filter(workReport => {
+        const order = workReport.orderId;
+
+        if (!order) {
+            return false;
+        }
+
+        if (tecnicoId && order.tecnicoId?._id.toString() !== tecnicoId) {
+            return false;
+        }
+
+        if (instructorId && order.instructorId?._id.toString() !== instructorId) {
+            return false;
+        }
+
+        return true;
+    });
+}
 
   async findOne(id: string): Promise<WorkReport> {
     return await this.workReportModel.findById(id).populate({
@@ -64,18 +100,29 @@ export class WorkReportService extends GenericService<WorkReport, CreateWorkRepo
   
 
 
-  async maintenanceHistory(serialNumber: string){
-    return await this.workReportModel.find().populate({
-      path: 'orderId',
-      select: 'radicado',
-      match: { state: true},
-      populate: {
-        path: 'solicitud  ',
-        select: 'maintenanceType',
-        match: {serialNumber: serialNumber}
-      }
-    }).exec().then(results => {
-      return results.filter(workReport => workReport.orderId?.solicitud);
-  });
-  }
+
+  async maintenanceHistory(serialNumber: string) {
+    const workReports = await this.workReportModel
+        .find()
+        .populate({
+            path: 'orderId',
+            select: 'radicado solicitud',
+            match: { state: true },
+            populate: {
+                path: 'solicitud',
+                select: 'serialNumber maintenanceType',
+                model: 'MaintenanceRequest'
+            }
+        })
+        .sort({ createdAt: -1 }) 
+        .exec();
+
+    const filteredReports = workReports.filter(workReport => 
+        workReport.orderId?.solicitud && 
+        workReport.orderId.solicitud.serialNumber === serialNumber
+    );
+
+    return filteredReports;
+}
+
 }  

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, BadRequestException, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, BadRequestException, UploadedFile, Query } from '@nestjs/common';
 import { WorkReportService } from './work_report.service';
 import { CreateWorkReportDto } from './dto/create-work_report.dto';
 import { UpdateWorkReportDto } from './dto/update-work_report.dto';
@@ -15,7 +15,10 @@ export class WorkReportController extends GenericController<WorkReport , CreateW
   @Get("Informes")
   async obtenerInformes() {
     return await this.workReportService.obtenerInformesConDetalles();
+
   }
+
+  
 
   @Get('maintenanceHistory/:serialNumber')
   async maintenanceHistory(@Param('serialNumber') serialNumber: string){

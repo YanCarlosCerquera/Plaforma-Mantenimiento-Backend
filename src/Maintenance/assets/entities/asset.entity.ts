@@ -58,6 +58,9 @@ export class Assets extends Document {
     phone: string;
   };
 
+  @Prop()
+  lastReportDate: Date;
+
   @Prop({ required: true })
   status: boolean;
 }

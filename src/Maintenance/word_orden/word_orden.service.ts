@@ -32,7 +32,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
 
     const expiredOrders = await this.OrdenModel.find({
       fechaFin: { $lt: now }, // FechaFin es menor que la fecha actual
-      state: true, // Solo órdenes activas
+      state: false, // Solo órdenes activas
     })
 
     for (const order of expiredOrders) {
@@ -105,8 +105,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       .populate("tecnicoId", "name")
       .populate("instructorId", "name")
       .populate({
-        path: "solicitud.solicitudIdc",
-        model: this.assetModel,
+        path: "solicitud",
         select: "serialNumber",
         populate: {
           path: "serialNumber",
@@ -132,23 +131,36 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
     return orden
   }
 
-  async findAllWithDetails(): Promise<OrdenesTrabajo[]> {
-    return this.OrdenModel.find({})
-      .populate("tecnicoId", "name")
-      .populate("instructorId", "name")
-      .populate({
-        path: "solicitud.solicitudId",
-        model: this.assetModel,
-        select: "serialNumber",
-        populate: {
-          path: "serialNumber",
-          model: this.assetModel,
-          select: "name",
-        },
-      })
-      .lean()
-      .exec() as Promise<OrdenesTrabajo[]>
-  }
+  async findAllWithDetails(instructorId?: string, tecnicoId?: string): Promise<OrdenesTrabajo[]> {
+    const query: any = {};
+
+    if (instructorId) {
+        query.instructorId = instructorId;
+    }
+
+    if (tecnicoId) {
+        query.tecnicoId = tecnicoId;
+    }
+
+    const ordenes = await this.OrdenModel.find(query)
+        .populate("tecnicoId", "name")
+        .populate("instructorId", "name")
+        .populate({
+            path: "solicitud",
+            select: "serialNumber",
+        })
+        .lean()
+        .exec();
+
+    for (const orden of ordenes) {
+        if (orden.solicitud && orden.solicitud.serialNumber) {
+            const asset = await this.assetModel.findOne({ serialNumber: orden.solicitud.serialNumber }).select("name image location").lean();
+            (orden.solicitud as any).asset = asset;
+        }
+    }
+
+    return ordenes as OrdenesTrabajo[];
+}
   /**
    * Encuentra todas las órdenes de trabajo asignadas a un técnico específico
    * @param userId - ID del usuario a verificar
@@ -273,5 +285,16 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
 
     return response
   }
-}
 
+  async getWorkOrdenstatics(): Promise<{}> {
+    const totalOrders = await this.OrdenModel.find().exec();
+    const executedOrders = totalOrders.filter(order => order.state === true).length;
+    const expiredOrders = totalOrders.filter(order => new Date(order.fechaFin) < new Date() && order.state === false).length;
+
+    return {
+      All: totalOrders.length,
+      Executed: executedOrders,
+      Expired: expiredOrders,
+    };
+  }
+}
