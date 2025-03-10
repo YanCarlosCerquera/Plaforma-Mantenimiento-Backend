@@ -18,6 +18,13 @@ export class WorkReportController extends GenericController<WorkReport , CreateW
 
   }
 
+  @Get() 
+  async findAllWithDetails(
+      @Query('instructorId') instructorId?: string,
+      @Query('tecnicoId') tecnicoId?: string,
+    ) {
+      return await this.workReportService.findAllDetails(instructorId, tecnicoId);
+  }
   
 
   @Get('maintenanceHistory/:serialNumber')
