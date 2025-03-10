@@ -23,6 +23,11 @@ export interface TecnicoOrdenesResponse {
       estado: boolean
       fechaCreacion: Date
       fechaActualizacion: Date
+
+      activo : Array <{
+nombre : string,
+ubicacion : string
+      }>
       mantenimientos: Array<{
         id: string
         tipo: string
