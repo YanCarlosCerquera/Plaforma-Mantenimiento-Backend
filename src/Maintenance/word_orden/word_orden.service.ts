@@ -9,9 +9,9 @@ import { MaintenanceRequest } from "src/Maintenance/application-maintenance/enti
 import { Cron } from "@nestjs/schedule"
 import { User } from "src/users/entities/user.entity"
 import { Assets } from "../assets/entities/asset.entity"
-import type { TecnicoOrdenesResponse } from "./TecnicoOrdenesResponse"
 import { Maintenance } from "../maintenance/entities/maintenance.entity"
 import { WorkReport } from "../work_report/entities/work_report.entity"
+import { TecnicoOrdenesResponse } from "./TecnicoOrdenesResponse"
 
 @Injectable()
 export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordOrdenDto, UpdateWordOrdenDto> {
@@ -191,6 +191,38 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
 
     const ordenesIds = ordenes.map((orden) => orden._id)
 
+    // Obtener los IDs de solicitudes de mantenimiento
+    const solicitudIds = ordenes.map((orden) => orden.solicitud)
+
+    // Buscar las solicitudes de mantenimiento
+    const solicitudes = await this.maintenanceModel
+      .find({
+        _id: { $in: solicitudIds },
+      })
+      .exec()
+
+    // Crear un mapa de solicitudes por ID
+    const solicitudesPorId = new Map()
+    solicitudes.forEach((solicitud) => {
+      solicitudesPorId.set(solicitud._id.toString(), solicitud)
+    })
+
+    // Obtener los números de serie de los activos
+    const serialNumbers = solicitudes.map((solicitud) => solicitud.serialNumber)
+
+    // Buscar los activos por número de serie
+    const activos = await this.assetModel
+      .find({
+        serialNumber: { $in: serialNumbers },
+      })
+      .exec()
+
+    // Crear un mapa de activos por número de serie
+    const activosPorSerial = new Map()
+    activos.forEach((activo) => {
+      activosPorSerial.set(activo.serialNumber, activo)
+    })
+
     const mantenimientos = await this.MantimientoModel.find({
       wordOrdenId: { $in: ordenesIds },
     }).exec()
@@ -227,6 +259,22 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       const mantenimientosDeOrden = mantenimientosPorOrden.get(ordenId) || []
       const informesDeOrden = informesPorOrden.get(ordenId) || []
 
+      // Obtener la solicitud asociada a esta orden
+      const solicitud = solicitudesPorId.get(orden.solicitud.toString())
+
+      // Obtener el activo asociado a esta solicitud
+      let activoInfo = { nombre: "No disponible", ubicacion: "No disponible" }
+
+      if (solicitud && solicitud.serialNumber) {
+        const activo = activosPorSerial.get(solicitud.serialNumber)
+        if (activo) {
+          activoInfo = {
+            nombre: activo.name,
+            ubicacion: activo.location,
+          }
+        }
+      }
+
       totalMantenimientos += mantenimientosDeOrden.length
       totalInformes += informesDeOrden.length
 
@@ -242,6 +290,8 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
         estado: orden.state,
         fechaCreacion: orden.fechaFin,
         fechaActualizacion: orden.fechaInicio,
+        // Agregar información del activo
+        activo: [activoInfo],
         mantenimientos: mantenimientosDeOrden.map((m) => ({
           id: m._id.toString(),
           tipo: m.typeMaintenance,
@@ -285,6 +335,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
 
     return response
   }
+
 
   async getWorkOrdenstatics(): Promise<{}> {
     const totalOrders = await this.OrdenModel.find().exec();
