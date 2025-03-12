@@ -99,7 +99,6 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       throw new BadRequestException("La fecha de inicio no puede ser posterior a la fecha de fin.")
     }
   }
-
   async findOn(id: string): Promise<any> {
     const orden = await this.OrdenModel.findById(id)
       .populate("tecnicoId", "name")
@@ -107,19 +106,14 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       .populate({
         path: "solicitud",
         select: "serialNumber",
-        populate: {
-          path: "serialNumber",
-          model: this.assetModel,
-          select: "name",
-        },
       })
       .populate({
         path: "maintenances",
         select: "description",
       })
       .lean({ virtuals: true })
-      .exec()
-
+      .exec();
+  
     if (!orden) {
       throw new Error("Orden de trabajo no encontrada")
     }
@@ -166,7 +160,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
    * @param userId - ID del usuario a verificar
    * @returns Promise con array de órdenes de trabajo
    */
-
+  
   async findAllTecnico(userId: string): Promise<TecnicoOrdenesResponse> {
     if (!Types.ObjectId.isValid(userId)) {
       throw new NotFoundException("ID de usuario inválido")
