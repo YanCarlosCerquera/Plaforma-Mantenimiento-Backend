@@ -107,29 +107,33 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       .populate({
         path: "solicitud",
         select: "serialNumber",
-        populate: {
-          path: "serialNumber",
-          model: this.assetModel,
-          select: "name",
-        },
       })
       .populate({
         path: "maintenances",
         select: "description",
       })
       .lean({ virtuals: true })
-      .exec()
-
+      .exec();
+  
     if (!orden) {
-      throw new Error("Orden de trabajo no encontrada")
+      throw new Error("Orden de trabajo no encontrada");
     }
-
-    if (!orden.maintenances || orden.maintenances.length === 0) {
-      return { ...orden, message: "No tiene mantenimientos realizados" }
+  
+    let asset = null;
+  
+    if (orden.solicitud?.serialNumber) {
+      asset = await this.assetModel
+        .findOne({ serialNumber: orden.solicitud.serialNumber }, "name serialNumber")
+        .lean()
+        .exec();
     }
-
-    return orden
-  }
+  
+      return {
+        ...orden,
+        asset, // Agregar asset al objeto de respuesta en vez de modificar solicitud
+        message: !orden.maintenances?.length ? "No tiene mantenimientos realizados" : undefined,
+      };
+    }
 
   async findAllWithDetails(instructorId?: string, tecnicoId?: string): Promise<OrdenesTrabajo[]> {
     const query: any = {};
