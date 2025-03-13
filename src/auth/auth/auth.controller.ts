@@ -36,6 +36,17 @@ export class AuthController {
   }
 
   @Public()
+  @Post('refresh-access-token')
+  async refreshAccessToken(@Body('access_token') currentAccessToken: string) {
+    if (!currentAccessToken) {
+      throw new UnauthorizedException('Access token no proporcionado');
+    }
+
+    const newAccessToken = await this.authService.refreshAccessToken(currentAccessToken);
+    return newAccessToken;
+  }
+
+  @Public()
   @Post('iniciar-recuperacion')
   async iniciarRecuperacionContrasena(
     @Body('typeDocument') typeDocument: string,

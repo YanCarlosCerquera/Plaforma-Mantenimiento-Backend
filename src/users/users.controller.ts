@@ -12,8 +12,8 @@ import { Roles } from 'src/auth/auth/decorators/rol.decorator';
 
 
 @Controller('users')
-/* @Log('Usuarios', '/usu')
- */export class UsersController extends GenericController<User, CreateUserDto, UpdateUserDto> {
+// @Log('Usuarios', '/usu')
+export class UsersController extends GenericController<User, CreateUserDto, UpdateUserDto> {
   constructor(private readonly usersService: UsersService) {
     super(usersService)
   }

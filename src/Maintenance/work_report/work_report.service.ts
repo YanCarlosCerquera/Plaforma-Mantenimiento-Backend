@@ -67,7 +67,7 @@ export class WorkReportService extends GenericService<WorkReport, CreateWorkRepo
 
   async obtenerInformesConDetalles(): Promise<any[]> {
     const informes = await this.workReportModel
-      .find()
+      .find({ orderId: { $exists: true, $ne: null } }) // Evita IDs nulos
       .populate({
         path: 'orderId',
         populate: [
@@ -88,15 +88,17 @@ export class WorkReportService extends GenericService<WorkReport, CreateWorkRepo
   
     return informes.map((informe) => ({
       Informe: informe.Informe,
+      Id : informe._id,
       'CodigoInventario': informe.orderId?.solicitud
         ? (informe.orderId.solicitud as any).InventoryCode
         : null,
       Horas: informe.hours,
       Costos: informe.costs,
       'TrabajoRealizado': informe.workDone,
-      'Ejecutado Por': informe.orderId?.tecnicoId?.name || null,
+      'EjecutadoPor': informe.orderId?.tecnicoId?.name || null,
     }));
   }
+  
   
 
 

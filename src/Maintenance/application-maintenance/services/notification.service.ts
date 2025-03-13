@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { UltraMsgService } from '../Wss.service';
-import { INotificationService, NotificationData, NotificationConfig } from '../interfaces/notification.interface';
+import { INotificationService, NotificationData, NotificationConfig, Email } from '../interfaces/notification.interface';
 import axios from 'axios';
+import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()
 export class NotificationService implements INotificationService {
@@ -15,7 +16,8 @@ export class NotificationService implements INotificationService {
   };
 
   constructor(
-    private readonly wssService: UltraMsgService
+    private readonly wssService: UltraMsgService,
+    private readonly mailerService: MailerService
   ) {}
 
   async sendNotification(data: NotificationData): Promise<void> {
@@ -26,6 +28,23 @@ export class NotificationService implements INotificationService {
       ]);
     } catch (error) {
       console.error(`Error sending notifications for ${data.trackingNumber}:`, error);
+    }
+  }
+
+  async sendNotificationEmail(email: Email, notificationData: NotificationData): Promise<void> {
+    try {
+      const finalBody = email.body || this.generateTechnicianEmailBody(notificationData);
+  
+      await this.mailerService.sendMail({
+        to: email.to,
+        subject: email.subject,
+        html: finalBody,
+      });
+  
+      console.log(`✅ Email enviado a: ${email.to}`);
+    } catch (error) {
+      console.error(`❌ Error al enviar email a ${email.to}:`, error);
+      throw error;
     }
   }
 
@@ -42,21 +61,13 @@ export class NotificationService implements INotificationService {
   private async sendTelegramNotification(data: NotificationData): Promise<void> {
     const message = this.createNotificationMessage(data);
     const topicId = data.isRequester ? this.config.topics.SOLICITANTE : this.config.topics.INSTRUCTOR;
-    const stickerFileId = "CAACAgEAAxkBAAMHZ2M0z9nsiq93Cx7mkxmyvO8Eo_YAAkEFAAJ6ByBH1BcAAePLwOg3NgQ";
 
     try {
-      await Promise.all([
-        axios.post(`https://api.telegram.org/bot${this.config.telegramToken}/sendMessage`, {
-          chat_id: this.config.chatId,
-          message_thread_id: topicId,
-          text: message
-        }),
-        axios.post(`https://api.telegram.org/bot${this.config.telegramToken}/sendSticker`, {
-          chat_id: this.config.chatId,
-          message_thread_id: topicId,
-          sticker: stickerFileId
-        })
-      ]);
+      await axios.post(`https://api.telegram.org/bot${this.config.telegramToken}/sendMessage`, {
+        chat_id: this.config.chatId,
+        message_thread_id: topicId,
+        text: message
+      });
       console.log(`Telegram notification sent for ${data.trackingNumber}`);
     } catch (error) {
       console.error(`Telegram notification error for ${data.trackingNumber}:`, error);
@@ -64,57 +75,40 @@ export class NotificationService implements INotificationService {
   }
 
   private createNotificationMessage(data: NotificationData): string {
-    // Puedes crear diferentes plantillas según el tipo de mantenimiento o estado
-    const templates = {
-      requester: {
-        new: `🔔 *Nueva Solicitud de Mantenimiento*
+    return `⚡ *Nueva Orden de Trabajo Asignada*
 ¡Hola ${data.recipientName}!
 
-Su solicitud ha sido registrada exitosamente:
-📝 *Detalles de la Solicitud:*
+Se le ha asignado una nueva orden de trabajo:
+📋 *Detalles:*
 • N° Seguimiento: #${data.trackingNumber}
 • Tipo: ${data.maintenanceType}
-• Estado: En Proceso
+• Solicitante: ${data.requesterName || "No especificado"}
 • Descripción: ${data.description.substring(0, 100)}${data.description.length > 100 ? '...' : ''}
 
-ℹ️ Un técnico especializado revisará su solicitud y le mantendremos informado sobre el progreso.
-
-🔍 *Seguimiento:* Puede consultar el estado de su solicitud en cualquier momento usando su número de seguimiento.`,
-
-        update: `🔄 *Actualización de Solicitud*
-¡Hola ${data.recipientName}!
-Su solicitud #${data.trackingNumber} ha sido actualizada.`
-      },
-      technician: {
-        new: `⚡ *Nueva Solicitud Asignada*
-¡Hola ${data.recipientName}!
-
-Se le ha asignado una nueva solicitud que requiere su atención:
-📋 *Detalles de la Solicitud:*
-• N° Seguimiento: #${data.trackingNumber}
-• Tipo: ${data.maintenanceType}
-• Solicitante: ${data.requesterName}
-• Descripción: ${data.description.substring(0, 100)}${data.description.length > 100 ? '...' : ''}
-
-⚠️ *Acción Requerida:* Por favor, revise y atienda esta solicitud lo antes posible.`,
-
-        reminder: `⏰ *Recordatorio*
-¡Hola ${data.recipientName}!
-La solicitud #${data.trackingNumber} está pendiente de atención.`
-      }
-    };
-
-    // Seleccionar la plantilla base según el tipo de usuario
-    const baseMessage = data.isRequester ? templates.requester.new : templates.technician.new;
-
-    // Añadir pie de página con enlaces
-    return `${baseMessage}
+⚠️ *Acción Requerida:* Por favor, revise y atienda esta orden lo antes posible.
 
 🌐 *Enlaces Útiles:*
 • Portal de Mantenimiento: https://mantenimiento.sena.edu.co
-• Canal de Soporte: https://t.me/+iFfUv76--XtjNzlh
 • Documentación: https://docs.mantenimiento.sena.edu.co
 
 _Este es un mensaje automático, por favor no responder directamente._`;
+  }
+
+  private generateTechnicianEmailBody(data: NotificationData): string {
+    return `
+      <h2>📢 Nueva Orden de Trabajo</h2>
+      <p><strong>Estimado ${data.recipientName},</strong></p>
+      <p>Se le ha asignado una nueva orden de trabajo. A continuación los detalles:</p>
+      <ul>
+        <li><strong>N° Seguimiento:</strong> #${data.trackingNumber}</li>
+        <li><strong>Tipo:</strong> ${data.maintenanceType}</li>
+        <li><strong>Solicitante:</strong> ${data.requesterName || "No especificado"}</li>
+        <li><strong>Descripción:</strong> ${data.description || "Sin descripción"}</li>
+      </ul>
+      <p>Por favor, revise y atienda la orden lo antes posible.</p>
+      <p>📌 <a href="https://mantenimiento.sena.edu.co">Acceder al Sistema</a></p>
+      <br>
+      <p><em>Este es un mensaje automático, por favor no responder directamente.</em></p>
+    `;
   }
 }

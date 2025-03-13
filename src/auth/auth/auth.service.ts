@@ -77,11 +77,37 @@ export class AuthService {
     // Generar el token
     const payload = { sub: user._id, email: user.email };
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: this.jwtService.sign(payload, { expiresIn: '60m' }),
       menu: menu
     };
   }
+
+  async refreshAccessToken(currentAccessToken: string): Promise<{ access_token: string }> {
+    try {
+      const payload = this.jwtService.verify(currentAccessToken, { ignoreExpiration: true }); 
   
+      const user = await this.userService.findOne(payload.sub);
+      if (!user) {
+        throw new UnauthorizedException('Usuario no encontrado');
+      }
+  
+      const decodedToken = this.jwtService.decode(currentAccessToken) as { exp: number };
+      const expirationTime = decodedToken.exp * 1000; 
+      const currentTime = Date.now();
+      const timeUntilExpiration = expirationTime - currentTime;
+  
+      if (timeUntilExpiration > 5 * 60 * 1000) { 
+        throw new BadRequestException('El token no está próximo a expirar');
+      }
+  
+      const newPayload = { sub: user._id, email: user.email };
+      const newAccessToken = this.jwtService.sign(newPayload, { expiresIn: '60m' }); 
+  
+      return { access_token: newAccessToken };
+    } catch (error) {
+      throw new UnauthorizedException('Token inválido o no se puede refrescar', error);
+    }
+  }
 
   async iniciarRecuperacionContrasena(typeDocument: string, numberDocument: string ): Promise<String> {
     const user = await this.userService.findByDocumento(typeDocument, numberDocument);

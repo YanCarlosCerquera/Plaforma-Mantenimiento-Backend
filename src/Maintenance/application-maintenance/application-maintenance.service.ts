@@ -48,31 +48,60 @@ export class ApplicationMaintenanceService extends GenericService<MaintenanceReq
 
   private async handleMaintenanceNotifications(maintenanceRequest: MaintenanceRequest): Promise<void> {
     try {
-      const notifications = [];
       console.log('Iniciando proceso de notificaciones...');
-
-      // 1. Buscar y notificar al encargado
+  
+      const notifications: Promise<void>[] = [];
+  
+      // Buscar al encargado solo una vez
       const userToNotify = await this.findUserToNotify(maintenanceRequest.serialNumber);
-      if (userToNotify && userToNotify.phoneNumber) {
-        console.log(`✉️ Preparando notificación para el encargado: ${userToNotify.name}`);
-        notifications.push(
-          this.notificationService.sendNotification({
-            recipientName: userToNotify.name,
-            recipientPhone: userToNotify.phoneNumber,
-            trackingNumber: maintenanceRequest.trackingNumber,
-            maintenanceType: maintenanceRequest.maintenanceType,
-            description: maintenanceRequest.issueDescription,
-            requesterName: maintenanceRequest.requesterName,
-            isRequester: false
-          })
-        );
+  
+      if (userToNotify) {
+        if (userToNotify.email) {
+          console.log(`✉️ Enviando correo a ${userToNotify.name} (${userToNotify.email})`);
+          
+          notifications.push(
+            this.notificationService.sendNotificationEmail(
+              {
+                to: userToNotify.email,
+                subject: `Mantenimiento requerido - ${maintenanceRequest.trackingNumber}`,
+                body:""
+              },
+              {
+                recipientName: userToNotify.name,
+                recipientPhone: userToNotify.phoneNumber,
+                trackingNumber: maintenanceRequest.trackingNumber,
+                maintenanceType: maintenanceRequest.maintenanceType,
+                description: maintenanceRequest.issueDescription,
+                requesterName: maintenanceRequest.requesterName,
+                isRequester: false
+               
+              }
+            )
+          );
+        }
+      
+  
+        if (userToNotify.phoneNumber) {
+          console.log(`📲 Enviando SMS a ${userToNotify.name} (${userToNotify.phoneNumber})`);
+          notifications.push(
+            this.notificationService.sendNotification({
+              recipientName: userToNotify.name,
+              recipientPhone: userToNotify.phoneNumber,
+              trackingNumber: maintenanceRequest.trackingNumber,
+              maintenanceType: maintenanceRequest.maintenanceType,
+              description: maintenanceRequest.issueDescription,
+              requesterName: maintenanceRequest.requesterName,
+              isRequester: false
+            })
+          );
+        }
       } else {
-        console.log('⚠️ No se encontró información del encargado para notificar');
+        console.log('⚠️ No se encontró información del encargado para notificar.');
       }
-
-      // 2. Notificar al solicitante
+  
+      // Notificar al solicitante
       if (maintenanceRequest.requesterPhone && maintenanceRequest.requesterName) {
-        console.log(`✉️ Preparando notificación para el solicitante: ${maintenanceRequest.requesterName}`);
+        console.log(`📲 Enviando SMS al solicitante: ${maintenanceRequest.requesterName} (${maintenanceRequest.requesterPhone})`);
         notifications.push(
           this.notificationService.sendNotification({
             recipientName: maintenanceRequest.requesterName,
@@ -85,24 +114,23 @@ export class ApplicationMaintenanceService extends GenericService<MaintenanceReq
           })
         );
       } else {
-        console.log('⚠️ No se encontró información del solicitante para notificar');
+        console.log('⚠️ No se pudo notificar al solicitante debido a falta de información.');
       }
-
-      // Enviar todas las notificaciones
+  
+      // Enviar todas las notificaciones en paralelo
       if (notifications.length > 0) {
-        await Promise.all(notifications);
+        await Promise.allSettled(notifications);
         console.log(`✅ Se enviaron ${notifications.length} notificaciones exitosamente`);
       } else {
-        console.log('⚠️ No se pudo enviar ninguna notificación');
+        console.log('⚠️ No se pudo enviar ninguna notificación.');
       }
-
     } catch (error) {
       console.error('❌ Error al enviar notificaciones:', error);
-      // No lanzamos el error para no interrumpir el flujo principal
     }
   }
+  
 
-  private async findUserToNotify(serialNumber: string): Promise<{ phoneNumber: string; name: string } | null> {
+  private async findUserToNotify(serialNumber: string): Promise<{ phoneNumber: string , email : string , name: string } | null> {
     try {
       const result = await this.assetModel.aggregate([
         { 
@@ -149,6 +177,7 @@ export class ApplicationMaintenanceService extends GenericService<MaintenanceReq
         },
         {
           $project: {
+            email : '$user.email',
             phoneNumber: '$user.phone',
             name: '$user.name'
           }
