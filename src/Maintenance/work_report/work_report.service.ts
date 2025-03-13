@@ -58,6 +58,8 @@ export class WorkReportService extends GenericService<WorkReport, CreateWorkRepo
     });
 }
 
+
+
   async findOne(id: string): Promise<WorkReport> {
     return await this.workReportModel.findById(id).populate({
       path: 'orderId',

@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { UltraMsgService } from '../Wss.service';
 import { INotificationService, NotificationData, NotificationConfig, Email } from '../interfaces/notification.interface';
 import axios from 'axios';
 import { MailerService } from '@nestjs-modules/mailer';
@@ -16,14 +15,12 @@ export class NotificationService implements INotificationService {
   };
 
   constructor(
-    private readonly wssService: UltraMsgService,
     private readonly mailerService: MailerService
   ) {}
 
   async sendNotification(data: NotificationData): Promise<void> {
     try {
       await Promise.all([
-        this.sendWhatsAppNotification(data),
         this.sendTelegramNotification(data),
       ]);
     } catch (error) {
@@ -48,15 +45,6 @@ export class NotificationService implements INotificationService {
     }
   }
 
-  private async sendWhatsAppNotification(data: NotificationData): Promise<void> {
-    const message = this.createNotificationMessage(data);
-    try {
-      await this.wssService.sendMessage(data.recipientPhone, message);
-      console.log(`WhatsApp notification sent for ${data.trackingNumber}`);
-    } catch (error) {
-      console.error(`WhatsApp notification error for ${data.trackingNumber}:`, error);
-    }
-  }
 
   private async sendTelegramNotification(data: NotificationData): Promise<void> {
     const message = this.createNotificationMessage(data);
