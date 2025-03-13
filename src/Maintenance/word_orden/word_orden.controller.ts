@@ -49,4 +49,11 @@ export class WordOrdenController extends GenericController <OrdenesTrabajo , Cre
     }
   }
 
+  @Post('force-check-expiration')
+  async forceCheckExpiration() {
+    await this.wordOrdenService.forceCheckOrdersAboutToExpire();
+    return { message: 'Expiration check executed successfully' };
+  }
+
+
 }

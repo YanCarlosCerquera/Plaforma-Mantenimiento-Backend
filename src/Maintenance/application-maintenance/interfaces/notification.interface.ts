@@ -14,6 +14,15 @@ export interface NotificationData {
   isRequester: boolean;
 }
 
+export interface NotificarFEhcas {
+  name: string
+  radicado : string;
+  fechaFin : string;
+  daysRemaining : string;
+  prioridad:string;
+  assetInfo:string
+}
+
 export interface Email {
   to: string;
   subject: string;

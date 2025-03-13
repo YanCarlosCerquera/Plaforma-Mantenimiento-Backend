@@ -9,15 +9,16 @@ import { UsersModule } from "src/users/users.module"
 import { AssetsModule } from "../assets/assets.module"
 import { MaintenanceModule } from "../maintenance/maintenance.module"
 import { WorkReportModule } from "../work_report/work_report.module"
+import { NotificationService } from "../application-maintenance/services/notification.service"
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: OrdenesTrabajo.name, schema: OrdenesTrabajoSchema }]),
-    ApplicationMaintenanceModule,
-    forwardRef(() =>UsersModule),
-    forwardRef(() =>AssetsModule),
+    forwardRef(() => ApplicationMaintenanceModule), 
+    forwardRef(() => UsersModule),
+    forwardRef(() => AssetsModule),
     forwardRef(() => MaintenanceModule), 
-    forwardRef(() =>WorkReportModule),
+    forwardRef(() => WorkReportModule),
     ScheduleModule.forRoot(),
   ],
   controllers: [WordOrdenController],
@@ -25,4 +26,3 @@ import { WorkReportModule } from "../work_report/work_report.module"
   exports: [MongooseModule, WordOrdenService],
 })
 export class WordOrdenModule {}
-

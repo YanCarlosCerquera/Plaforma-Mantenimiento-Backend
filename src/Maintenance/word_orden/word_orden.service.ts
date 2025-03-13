@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from "@nestjs/common"
+import { Injectable, BadRequestException, NotFoundException, forwardRef, Inject } from "@nestjs/common"
 import { InjectModel } from "@nestjs/mongoose"
 import { type Model, Types } from "mongoose"
 import type { CreateWordOrdenDto } from "./dto/create-word_orden.dto"
@@ -11,7 +11,8 @@ import { User } from "src/users/entities/user.entity"
 import { Assets } from "../assets/entities/asset.entity"
 import { Maintenance } from "../maintenance/entities/maintenance.entity"
 import { WorkReport } from "../work_report/entities/work_report.entity"
-import { TecnicoOrdenesResponse } from "./TecnicoOrdenesResponse"
+import type { TecnicoOrdenesResponse } from "./TecnicoOrdenesResponse"
+import { NotificationService } from "../application-maintenance/services/notification.service"
 
 @Injectable()
 export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordOrdenDto, UpdateWordOrdenDto> {
@@ -22,8 +23,16 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
     @InjectModel(Assets.name) private assetModel: Model<Assets>,
     @InjectModel(Maintenance.name) private MantimientoModel: Model<Maintenance>,
     @InjectModel(WorkReport.name) private workReportModel: Model<WorkReport>,
+    @Inject(forwardRef(() => NotificationService)) private readonly notificationService: NotificationService,
+    
   ) {
     super(OrdenModel);
+  }
+
+
+  async forceCheckOrdersAboutToExpire(): Promise<void> {
+    await this.checkOrdersAboutToExpire();
+    return;
   }
 
   @Cron("00 * * * * *") // Se ejecuta cada minuto
@@ -47,6 +56,86 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
     console.log(`Órdenes expiradas actualizadas: ${expiredOrders.length}`)
   }
 
+  /**
+   * Verifica órdenes de trabajo próximas a vencer y envía notificaciones
+   * a los técnicos responsables
+   */
+    @Cron("00 * * * * *") 
+  async checkOrdersAboutToExpire(): Promise<void> {
+    try {
+      const now = new Date();
+      const threeDaysFromNow = new Date();
+      threeDaysFromNow.setDate(now.getDate() + 3); 
+      
+      const ordersAboutToExpire = await this.OrdenModel.find({
+        fechaFin: { 
+          $gt: now, 
+          $lt: threeDaysFromNow 
+        },
+        state: true,
+        notifiedExpiration: { $ne: true } 
+      }).populate([
+        { path: 'tecnicoId', select: 'name email phone' },
+        { path: 'solicitud', select: 'trackingNumber InventoryCode maintenanceType' }
+      ]);
+      
+      console.log(`Órdenes próximas a vencer encontradas: ${ordersAboutToExpire.length}`);
+      
+      const notifications = [];
+      
+      for (const order of ordersAboutToExpire) {
+        const daysRemaining = Math.ceil((order.fechaFin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        const userToNotify = order.tecnicoId;
+        
+        let assetInfo = "No disponible";
+        if (order.solicitud && order.solicitud.InventoryCode) {
+          const asset = await this.assetModel.findOne({ 
+            inventoryCode: order.solicitud.InventoryCode 
+          }).select('name location').lean();
+          
+          if (asset) {
+            assetInfo = `${asset.name} (${asset.location})`;
+          }
+        }
+        
+        if (userToNotify && userToNotify.email) {
+          console.log(`✉️ Enviando correo a ${userToNotify.name} (${userToNotify.email})`);
+          
+          notifications.push(
+            this.notificationService.sendNotificationEmail(
+              {
+                to: userToNotify.email,
+                subject: `Orden de Trabajo Próxima a Vencer - ${order.radicado}`,
+                body: "", // Se generará automáticamente
+              },
+              null, // No necesitamos NotificationData
+              {
+                name: userToNotify.name,
+                radicado: order.radicado,
+                fechaFin: order.fechaFin.toLocaleDateString(),
+                daysRemaining: daysRemaining.toString(),
+                prioridad: order.prioridad,
+                assetInfo: assetInfo
+              }
+            )
+          );
+          
+          // Marcar la orden como notificada
+          order.notifiedExpiration = true;
+          await order.save();
+        }
+      }
+      
+      // Esperar a que todas las notificaciones se envíen
+      if (notifications.length > 0) {
+        await Promise.all(notifications);
+        console.log(`✅ Se enviaron ${notifications.length} notificaciones`);
+      }
+      
+    } catch (error) {
+      console.error('Error al verificar órdenes próximas a vencer:', error);
+    }
+  }
   private async validateWorkOrder(createDto: CreateWordOrdenDto): Promise<void> {
     // Validar que la solicitud existe
     const solicitud = await this.maintenanceModel.findById(createDto.solicitud)
@@ -60,9 +149,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
     })
 
     if (existingWorkOrder) {
-      throw new BadRequestException(
-        `Ya existe una orden de trabajo para la solicitud ${createDto.solicitud}`,
-      )
+      throw new BadRequestException(`Ya existe una orden de trabajo para la solicitud ${createDto.solicitud}`)
     }
 
     // Validar que el técnico existe
@@ -112,89 +199,140 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
         select: "description",
       })
       .lean({ virtuals: true })
-      .exec();
-  
+      .exec()
+
     if (!orden) {
-      throw new Error("Orden de trabajo no encontrada");
+      throw new Error("Orden de trabajo no encontrada")
     }
-  
-    let asset = null;
-  
+
+    let asset = null
+
     if (orden.solicitud?.serialNumber) {
       asset = await this.assetModel
         .findOne({ serialNumber: orden.solicitud.serialNumber }, "name serialNumber")
         .lean()
-        .exec();
+        .exec()
     }
-  
-      return {
-        ...orden,
-        asset, // Agregar asset al objeto de respuesta en vez de modificar solicitud
-        message: !orden.maintenances?.length ? "No tiene mantenimientos realizados" : undefined,
-      };
+
+    return {
+      ...orden,
+      asset, // Agregar asset al objeto de respuesta en vez de modificar solicitud
+      message: !orden.maintenances?.length ? "No tiene mantenimientos realizados" : undefined,
     }
+  }
 
   async findAllWithDetails(instructorId?: string, tecnicoId?: string): Promise<OrdenesTrabajo[]> {
-    const query: any = {};
+    const query: any = {}
 
     if (instructorId) {
-        query.instructorId = instructorId;
+      query.instructorId = instructorId
     }
 
     if (tecnicoId) {
-        query.tecnicoId = tecnicoId;
+      query.tecnicoId = tecnicoId
     }
 
     const ordenes = await this.OrdenModel.find(query)
-        .populate("tecnicoId", "name")
-        .populate("instructorId", "name")
-        .populate({
-            path: "solicitud",
-            select: "serialNumber",
-        })
-        .lean()
-        .exec();
+      .populate("tecnicoId", "name")
+      .populate("instructorId", "name")
+      .populate({
+        path: "solicitud",
+        select: "serialNumber",
+      })
+      .lean()
+      .exec()
 
     for (const orden of ordenes) {
-        if (orden.solicitud && orden.solicitud.serialNumber) {
-            const asset = await this.assetModel.findOne({ serialNumber: orden.solicitud.serialNumber }).select("name image location").lean();
-            (orden.solicitud as any).asset = asset;
-        }
+      if (orden.solicitud && orden.solicitud.serialNumber) {
+        const asset = await this.assetModel
+          .findOne({ serialNumber: orden.solicitud.serialNumber })
+          .select("name image location")
+          .lean()
+        ;(orden.solicitud as any).asset = asset
+      }
     }
 
-    return ordenes as OrdenesTrabajo[];
-}
+    return ordenes as OrdenesTrabajo[]
+  }
   /**
    * Encuentra todas las órdenes de trabajo asignadas a un técnico específico
    * @param userId - ID del usuario a verificar
    * @returns Promise con array de órdenes de trabajo
    */
-  
-  async findAllTecnico(userId: string): Promise<TecnicoOrdenesResponse> {
+
+  async findAllTecnico(userId: string): Promise<TecnicoOrdenesResponse | any> {
     if (!Types.ObjectId.isValid(userId)) {
       throw new NotFoundException("ID de usuario inválido")
     }
 
-    const TECNICO_ROLE_ID = "674dc7135a622b0c8382078a"
-
-    const user = await this.userModel.findOne({
-      _id: userId,
-      assignedRol: TECNICO_ROLE_ID,
-      state: true,
-    })
+    // Buscar el usuario sin filtrar por rol específico
+    const user = await this.userModel
+      .findOne({
+        _id: userId,
+        state: true,
+      })
+      .populate("assignedRol") // Asumiendo que assignedRol es una referencia al modelo de roles
 
     if (!user) {
-      throw new NotFoundException(`Usuario con ID ${userId} no encontrado o no tiene el rol de técnico`)
+      throw new NotFoundException(`Usuario con ID ${userId} no encontrado`)
     }
 
-    const ordenes = await this.OrdenModel.find({
-      tecnicoId: userId,
-      state: true,
-    }).exec()
+    // Obtener el nombre o código del rol del usuario
+    const userRole = user.assignedRol.name
 
+    // Si el usuario es almacenista, devolver todos los bienes
+    if (userRole === "almacenista" || userRole === "Almacenista") {
+      // Consultar todos los bienes/activos
+      const activos = await this.assetModel
+        .find({ status: true })
+        .select("name location acquisitionDate inventoryCode serialNumber categoryId status")
+        .populate("categoryId", "name")
+        .exec()
+      // Crear una respuesta específica para almacenistas
+      return {
+        usuario: {
+          id: user._id.toString(),
+          nombre: user.name,
+          email: user.email,
+          telefono: user.phone || "No disponible",
+          cargo: user.assignedPosition,
+          documento: {
+            tipo: user.typeDocument,
+            numero: user.numberDocument,
+          },
+        },
+        activos: activos.map((activo) => ({
+          id: activo._id.toString(),
+          nombre: activo.name,
+          ubicacion: activo.location,
+          fechaAdquisicion: activo.acquisitionDate,
+          codigoInventario: activo.inventoryCode,
+          numeroSerie: activo.serialNumber,
+          categoria: activo.categoryId ? activo.categoryId.name : "No disponible",
+          estado: activo.status,
+          // Agrega aquí cualquier otro campo relevante de los activos
+        })),
+        total: activos.length,
+      }
+    }
+
+    // Para los demás roles, continuar con la lógica existente
+    // Crear un filtro dinámico basado en el rol del usuario
+    const ordenesFilter: any = { state: true }
+
+    // Aplicar filtros según el rol
+    if (userRole === "técnico" || userRole === "Técnico") {
+      ordenesFilter.tecnicoId = userId
+    } else if (userRole === "instructor" || userRole === "Instructor") {
+      ordenesFilter.instructorId = userId
+    }
+    // Para administradores o supervisores, no se aplica filtro adicional
+
+    // Aplicar el filtro dinámico a la consulta
+    const ordenes = await this.OrdenModel.find(ordenesFilter).exec()
+
+    // El resto del código permanece igual
     const ordenesIds = ordenes.map((orden) => orden._id)
-
-    // Obtener los IDs de solicitudes de mantenimiento
     const solicitudIds = ordenes.map((orden) => orden.solicitud)
 
     // Buscar las solicitudes de mantenimiento
@@ -218,6 +356,8 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       .find({
         serialNumber: { $in: serialNumbers },
       })
+      .select("name location acquisitionDate inventoryCode serialNumber categoryId status")
+      .populate("categoryId", "name")
       .exec()
 
     // Crear un mapa de activos por número de serie
@@ -266,14 +406,25 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       const solicitud = solicitudesPorId.get(orden.solicitud.toString())
 
       // Obtener el activo asociado a esta solicitud
-      let activoInfo = { nombre: "No disponible", ubicacion: "No disponible" }
+      let activoInfo = {
+        id: "No disponible",
+        nombre: "No disponible",
+        ubicacion: "No disponible",
+        fechaAdquisicion: new Date(),
+        codigoInventario: "no disponible",
+        categoria: "no disponible",
+      }
 
       if (solicitud && solicitud.serialNumber) {
         const activo = activosPorSerial.get(solicitud.serialNumber)
         if (activo) {
           activoInfo = {
+            id: activo._id.toString(),
             nombre: activo.name,
             ubicacion: activo.location,
+            fechaAdquisicion: activo.acquisitionDate,
+            codigoInventario: activo.inventoryCode,
+            categoria: activo.categoryId.name,
           }
         }
       }
@@ -319,7 +470,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
     })
 
     const response: TecnicoOrdenesResponse = {
-      tecnico: {
+      usuario: {
         id: user._id.toString(),
         nombre: user.name,
         email: user.email,
@@ -338,17 +489,18 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
 
     return response
   }
-
-
   async getWorkOrdenstatics(): Promise<{}> {
-    const totalOrders = await this.OrdenModel.find().exec();
-    const executedOrders = totalOrders.filter(order => order.state === true).length;
-    const expiredOrders = totalOrders.filter(order => new Date(order.fechaFin) < new Date() && order.state === false).length;
+    const totalOrders = await this.OrdenModel.find().exec()
+    const executedOrders = totalOrders.filter((order) => order.state === true).length
+    const expiredOrders = totalOrders.filter(
+      (order) => new Date(order.fechaFin) < new Date() && order.state === false,
+    ).length
 
     return {
       All: totalOrders.length,
       Executed: executedOrders,
       Expired: expiredOrders,
-    };
-  }
+    }
+  }
 }
+

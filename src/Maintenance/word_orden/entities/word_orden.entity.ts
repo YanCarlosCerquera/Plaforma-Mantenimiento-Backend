@@ -40,7 +40,10 @@ export class OrdenesTrabajo extends Document {
   deletedAt: Date;
 
   maintenances?: Maintenance[];
+  
 
+  @Prop({ type: Boolean, default: false })
+notifiedExpiration?: boolean;
 }
 
 export const OrdenesTrabajoSchema = SchemaFactory.createForClass(OrdenesTrabajo);

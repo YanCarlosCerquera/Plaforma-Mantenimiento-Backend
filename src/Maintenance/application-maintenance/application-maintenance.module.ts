@@ -28,6 +28,7 @@ import { NotificationService } from './services/notification.service';
   ],
   exports: [
     ApplicationMaintenanceService,
+    NotificationService,
     MongooseModule.forFeature([{ name: MaintenanceRequest.name, schema: MaintenanceRequestSchema }])
   ],
 })
