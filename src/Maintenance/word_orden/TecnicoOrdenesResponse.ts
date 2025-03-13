@@ -1,6 +1,6 @@
 // Crear un archivo separado para la interfaz
 export interface TecnicoOrdenesResponse {
-    tecnico: {
+    usuario: {
       id: string
       nombre: string
       email: string
@@ -25,8 +25,12 @@ export interface TecnicoOrdenesResponse {
       fechaActualizacion: Date
 
       activo : Array <{
-nombre : string,
-ubicacion : string
+        id : string,
+        nombre : string,
+        ubicacion : string,
+        fechaAdquisicion : Date,
+        codigoInventario : string,
+        categoria: string,
       }>
       mantenimientos: Array<{
         id: string

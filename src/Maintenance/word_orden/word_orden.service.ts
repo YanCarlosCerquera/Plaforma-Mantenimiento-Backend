@@ -12,6 +12,7 @@ import { Assets } from "../assets/entities/asset.entity"
 import { Maintenance } from "../maintenance/entities/maintenance.entity"
 import { WorkReport } from "../work_report/entities/work_report.entity"
 import { TecnicoOrdenesResponse } from "./TecnicoOrdenesResponse"
+import { identity } from "rxjs"
 
 @Injectable()
 export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordOrdenDto, UpdateWordOrdenDto> {
@@ -170,72 +171,120 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
    * @returns Promise con array de órdenes de trabajo
    */
   
-  async findAllTecnico(userId: string): Promise<TecnicoOrdenesResponse> {
+  async findAllTecnico(userId: string): Promise<TecnicoOrdenesResponse | any> {
     if (!Types.ObjectId.isValid(userId)) {
       throw new NotFoundException("ID de usuario inválido")
     }
-
-    const TECNICO_ROLE_ID = "674dc7135a622b0c8382078a"
-
+  
+    // Buscar el usuario sin filtrar por rol específico
     const user = await this.userModel.findOne({
       _id: userId,
-      assignedRol: TECNICO_ROLE_ID,
       state: true,
-    })
-
+    }).populate('assignedRol') // Asumiendo que assignedRol es una referencia al modelo de roles
+  
     if (!user) {
-      throw new NotFoundException(`Usuario con ID ${userId} no encontrado o no tiene el rol de técnico`)
+      throw new NotFoundException(`Usuario con ID ${userId} no encontrado`)
     }
-
-    const ordenes = await this.OrdenModel.find({
-      tecnicoId: userId,
-      state: true,
-    }).exec()
-
+  
+    // Obtener el nombre o código del rol del usuario
+    const userRole = user.assignedRol.name
+  
+    // Si el usuario es almacenista, devolver todos los bienes
+    if (userRole === 'almacenista' || userRole === 'Almacenista') {
+      // Consultar todos los bienes/activos
+      const activos = await this.assetModel
+        .find({ status: true })
+        .select("name location acquisitionDate inventoryCode serialNumber categoryId status")
+        .populate("categoryId", "name") 
+        .exec();
+      // Crear una respuesta específica para almacenistas
+      return {
+        usuario: {
+          id: user._id.toString(),
+          nombre: user.name,
+          email: user.email,
+          telefono: user.phone || "No disponible",
+          cargo: user.assignedPosition,
+          documento: {
+            tipo: user.typeDocument,
+            numero: user.numberDocument,
+          },
+        },
+        activos: activos.map(activo => ({
+          id: activo._id.toString(),
+          nombre: activo.name,
+          ubicacion: activo.location,
+          fechaAdquisicion: activo.acquisitionDate,
+          codigoInventario: activo.inventoryCode,
+          numeroSerie: activo.serialNumber,
+          categoria: activo.categoryId ? activo.categoryId.name : "No disponible",
+          estado: activo.status,
+          // Agrega aquí cualquier otro campo relevante de los activos
+        })),
+        total: activos.length
+      };
+    }
+  
+    // Para los demás roles, continuar con la lógica existente
+    // Crear un filtro dinámico basado en el rol del usuario
+    let ordenesFilter: any = { state: true }
+  
+    // Aplicar filtros según el rol
+    if (userRole === 'técnico' || userRole === 'Técnico') {
+      ordenesFilter.tecnicoId = userId
+    } else if (userRole === 'instructor' || userRole === 'Instructor') {
+      ordenesFilter.instructorId = userId
+    }
+    // Para administradores o supervisores, no se aplica filtro adicional
+  
+    // Aplicar el filtro dinámico a la consulta
+    const ordenes = await this.OrdenModel.find(ordenesFilter).exec()
+  
+    // El resto del código permanece igual
     const ordenesIds = ordenes.map((orden) => orden._id)
-
-    // Obtener los IDs de solicitudes de mantenimiento
     const solicitudIds = ordenes.map((orden) => orden.solicitud)
-
+  
     // Buscar las solicitudes de mantenimiento
     const solicitudes = await this.maintenanceModel
       .find({
         _id: { $in: solicitudIds },
       })
       .exec()
-
+  
     // Crear un mapa de solicitudes por ID
     const solicitudesPorId = new Map()
     solicitudes.forEach((solicitud) => {
       solicitudesPorId.set(solicitud._id.toString(), solicitud)
     })
-
+  
     // Obtener los números de serie de los activos
     const serialNumbers = solicitudes.map((solicitud) => solicitud.serialNumber)
-
+  
     // Buscar los activos por número de serie
     const activos = await this.assetModel
       .find({
         serialNumber: { $in: serialNumbers },
       })
-      .exec()
-
+      .select("name location acquisitionDate inventoryCode serialNumber categoryId status")
+      .populate("categoryId", "name") 
+      .exec();
+  
     // Crear un mapa de activos por número de serie
     const activosPorSerial = new Map()
     activos.forEach((activo) => {
       activosPorSerial.set(activo.serialNumber, activo)
     })
-
+  
     const mantenimientos = await this.MantimientoModel.find({
       wordOrdenId: { $in: ordenesIds },
     }).exec()
-
+  
     const informes = await this.workReportModel
       .find({
         orderId: { $in: ordenesIds },
       })
       .exec()
-
+  
     const mantenimientosPorOrden = new Map()
     mantenimientos.forEach((mantenimiento) => {
       const ordenId = mantenimiento.wordOrdenId.toString()
@@ -244,7 +293,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       }
       mantenimientosPorOrden.get(ordenId).push(mantenimiento)
     })
-
+  
     const informesPorOrden = new Map()
     informes.forEach((informe) => {
       const ordenId = informe.orderId.toString()
@@ -253,34 +302,45 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       }
       informesPorOrden.get(ordenId).push(informe)
     })
-
+  
     let totalMantenimientos = 0
     let totalInformes = 0
-
+  
     const ordenesConDetalles = ordenes.map((orden) => {
       const ordenId = orden._id.toString()
       const mantenimientosDeOrden = mantenimientosPorOrden.get(ordenId) || []
       const informesDeOrden = informesPorOrden.get(ordenId) || []
-
+  
       // Obtener la solicitud asociada a esta orden
       const solicitud = solicitudesPorId.get(orden.solicitud.toString())
-
+  
       // Obtener el activo asociado a esta solicitud
-      let activoInfo = { nombre: "No disponible", ubicacion: "No disponible" }
-
+      let activoInfo = { 
+        id: "No disponible",
+        nombre: "No disponible", 
+        ubicacion: "No disponible",
+        fechaAdquisicion: new Date(),
+        codigoInventario: "no disponible",
+        categoria: "no disponible",
+      }
+  
       if (solicitud && solicitud.serialNumber) {
         const activo = activosPorSerial.get(solicitud.serialNumber)
         if (activo) {
           activoInfo = {
+            id: activo._id.toString(),
             nombre: activo.name,
             ubicacion: activo.location,
+            fechaAdquisicion: activo.acquisitionDate,
+            codigoInventario: activo.inventoryCode,
+            categoria: activo.categoryId.name,
           }
         }
       }
-
+  
       totalMantenimientos += mantenimientosDeOrden.length
       totalInformes += informesDeOrden.length
-
+  
       return {
         id: ordenId,
         radicado: orden.radicado,
@@ -317,9 +377,9 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
         })),
       }
     })
-
+  
     const response: TecnicoOrdenesResponse = {
-      tecnico: {
+      usuario: {
         id: user._id.toString(),
         nombre: user.name,
         email: user.email,
@@ -335,11 +395,9 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       totalMantenimientos,
       totalInformes,
     }
-
+  
     return response
   }
-
-
   async getWorkOrdenstatics(): Promise<{}> {
     const totalOrders = await this.OrdenModel.find().exec();
     const executedOrders = totalOrders.filter(order => order.state === true).length;
