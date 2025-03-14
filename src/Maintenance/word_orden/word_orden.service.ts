@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, forwardRef, Inject } from "@nestjs/common"
+import { Injectable, BadRequestException, NotFoundException, forwardRef, Inject, Logger } from "@nestjs/common"
 import { InjectModel } from "@nestjs/mongoose"
 import { type Model, Types } from "mongoose"
 import type { CreateWordOrdenDto } from "./dto/create-word_orden.dto"
@@ -6,7 +6,7 @@ import type { UpdateWordOrdenDto } from "./dto/update-word_orden.dto"
 import { GenericService } from "src/Generic/generic.service"
 import { OrdenesTrabajo } from "./entities/word_orden.entity"
 import { MaintenanceRequest } from "src/Maintenance/application-maintenance/entities/application-maintenance.entity"
-import { Cron } from "@nestjs/schedule"
+import { Cron, CronExpression } from "@nestjs/schedule"
 import { User } from "src/users/entities/user.entity"
 import { Assets } from "../assets/entities/asset.entity"
 import { Maintenance } from "../maintenance/entities/maintenance.entity"
@@ -16,6 +16,8 @@ import { NotificationService } from "../application-maintenance/services/notific
 
 @Injectable()
 export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordOrdenDto, UpdateWordOrdenDto> {
+  private readonly logger = new Logger(WordOrdenService.name);
+
   constructor(
     @InjectModel(OrdenesTrabajo.name) private OrdenModel: Model<OrdenesTrabajo>,
     @InjectModel(MaintenanceRequest.name) private maintenanceModel: Model<MaintenanceRequest>,
@@ -24,323 +26,630 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
     @InjectModel(Maintenance.name) private MantimientoModel: Model<Maintenance>,
     @InjectModel(WorkReport.name) private workReportModel: Model<WorkReport>,
     @Inject(forwardRef(() => NotificationService)) private readonly notificationService: NotificationService,
-    
   ) {
     super(OrdenModel);
   }
 
-
+  /**
+   * Fuerza la verificación de órdenes próximas a vencer
+   */
   async forceCheckOrdersAboutToExpire(): Promise<void> {
-    await this.checkOrdersAboutToExpire();
-    return;
-  }
-
-  @Cron("00 * * * * *") // Se ejecuta cada minuto
-  async updateExpiredOrders(): Promise<void> {
-    const now = new Date()
-
-    const expiredOrders = await this.OrdenModel.find({
-      fechaFin: { $lt: now }, // FechaFin es menor que la fecha actual
-      state: false, // Solo órdenes activas
-    })
-
-    for (const order of expiredOrders) {
-      order.state = false
-      order.prioridad = "Sin Terminar"
-      await order.save()
-
-      // Actualizar el estado de la solicitud asociada a false
-      await this.maintenanceModel.findByIdAndUpdate(order.solicitud, { workOrderStatus: false })
-    }
-
-    console.log(`Órdenes expiradas actualizadas: ${expiredOrders.length}`)
+    this.logger.log("Forzando verificación de órdenes próximas a vencer")
+    await this.checkOrdersAboutToExpire()
+    return
   }
 
   /**
-   * Verifica órdenes de trabajo próximas a vencer y envía notificaciones
-   * a los técnicos responsables
+   * Actualiza órdenes expiradas cada minuto
+   * Cambia el estado y prioridad de las órdenes vencidas
    */
-    @Cron("00 * * * * *") 
-  async checkOrdersAboutToExpire(): Promise<void> {
+  @Cron(CronExpression.EVERY_MINUTE)
+  async updateExpiredOrders(): Promise<void> {
     try {
-      const now = new Date();
-      const threeDaysFromNow = new Date();
-      threeDaysFromNow.setDate(now.getDate() + 3); 
-      
-      const ordersAboutToExpire = await this.OrdenModel.find({
-        fechaFin: { 
-          $gt: now, 
-          $lt: threeDaysFromNow 
-        },
-        state: true,
-        notifiedExpiration: { $ne: true } 
-      }).populate([
-        { path: 'tecnicoId', select: 'name email phone' },
-        { path: 'solicitud', select: 'trackingNumber InventoryCode maintenanceType' }
-      ]);
-      
-      console.log(`Órdenes próximas a vencer encontradas: ${ordersAboutToExpire.length}`);
-      
-      const notifications = [];
-      
-      for (const order of ordersAboutToExpire) {
-        const daysRemaining = Math.ceil((order.fechaFin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        const userToNotify = order.tecnicoId;
-        
-        let assetInfo = "No disponible";
-        if (order.solicitud && order.solicitud.InventoryCode) {
-          const asset = await this.assetModel.findOne({ 
-            inventoryCode: order.solicitud.InventoryCode 
-          }).select('name location').lean();
-          
-          if (asset) {
-            assetInfo = `${asset.name} (${asset.location})`;
-          }
-        }
-        
-        if (userToNotify && userToNotify.email) {
-          console.log(`✉️ Enviando correo a ${userToNotify.name} (${userToNotify.email})`);
-          
-          notifications.push(
-            this.notificationService.sendNotificationEmail(
-              {
-                to: userToNotify.email,
-                subject: `Orden de Trabajo Próxima a Vencer - ${order.radicado}`,
-                body: "", // Se generará automáticamente
-              },
-              null, // No necesitamos NotificationData
-              {
-                name: userToNotify.name,
-                radicado: order.radicado,
-                fechaFin: order.fechaFin.toLocaleDateString(),
-                daysRemaining: daysRemaining.toString(),
-                prioridad: order.prioridad,
-                assetInfo: assetInfo
-              }
-            )
-          );
-          
-          // Marcar la orden como notificada
-          order.notifiedExpiration = true;
-          await order.save();
-        }
+      const now = new Date()
+      this.logger.debug(`Verificando órdenes expiradas: ${now.toISOString()}`)
+
+      // Buscar órdenes expiradas que aún no han sido marcadas como vencidas
+      const expiredOrders = await this.OrdenModel.find({
+        fechaFin: { $lt: now },
+        state: true, // Solo órdenes activas
+      })
+
+      if (expiredOrders.length === 0) {
+        return
       }
-      
-      // Esperar a que todas las notificaciones se envíen
-      if (notifications.length > 0) {
-        await Promise.all(notifications);
-        console.log(`✅ Se enviaron ${notifications.length} notificaciones`);
+
+      this.logger.log(`Encontradas ${expiredOrders.length} órdenes expiradas para actualizar`)
+
+      // Procesar en lotes para mejor rendimiento
+      const batchSize = 10
+      const batches = Math.ceil(expiredOrders.length / batchSize)
+
+      for (let i = 0; i < batches; i++) {
+        const batch = expiredOrders.slice(i * batchSize, (i + 1) * batchSize)
+        const updatePromises = batch.map(async (order) => {
+          // Actualizar la orden
+          order.state = false
+          order.prioridad = "Sin Terminar"
+          await order.save()
+
+          // Actualizar la solicitud asociada
+          await this.maintenanceModel.findByIdAndUpdate(order.solicitud, { workOrderStatus: false })
+
+          // Notificar al técnico sobre la orden vencida
+          await this.notifyExpiredOrder(order)
+        })
+
+        await Promise.all(updatePromises)
       }
-      
+
+      this.logger.log(`Órdenes expiradas actualizadas: ${expiredOrders.length}`)
     } catch (error) {
-      console.error('Error al verificar órdenes próximas a vencer:', error);
+      this.logger.error(`Error al actualizar órdenes expiradas: ${error.message}`, error.stack)
     }
   }
+
+  /**
+   * Notifica al técnico sobre una orden vencida
+   */
+  private async notifyExpiredOrder(order: OrdenesTrabajo): Promise<void> {
+    try {
+      const tecnico = await this.userModel.findById(order.tecnicoId).select("name email phone").lean()
+
+      if (!tecnico || !tecnico.email) {
+        return
+      }
+
+      const solicitud = await this.maintenanceModel
+        .findById(order.solicitud)
+        .select("trackingNumber InventoryCode maintenanceType")
+        .lean()
+
+      let assetInfo = "No disponible"
+      if (solicitud && solicitud.InventoryCode) {
+        const asset = await this.assetModel
+          .findOne({ inventoryCode: solicitud.InventoryCode })
+          .select("name location category")
+          .lean()
+
+        if (asset) {
+          assetInfo = `${asset.name} (${asset.categoryId.name || "Sin categoría"} - ${asset.location || "Sin ubicación"})`
+        }
+      }
+
+      await this.notificationService.sendNotificationEmail(
+        {
+          to: tecnico.email,
+          subject: `⚠️ Orden de Trabajo Vencida - ${order.radicado}`,
+          body: null,
+        },
+        null,
+        {
+          name: tecnico.name,
+          radicado: order.radicado,
+          fechaFin: order.fechaFin.toLocaleDateString(),
+          daysRemaining: "0",
+          prioridad: "Alta",
+          assetInfo: assetInfo,
+        },
+      )
+    } catch (error) {
+      this.logger.error(`Error al notificar orden vencida: ${error.message}`)
+    }
+  }
+
+  /**
+   * Verifica órdenes próximas a vencer cada minuto
+   * Envía notificaciones a los técnicos
+   */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async checkOrdersAboutToExpire(): Promise<void> {
+    try {
+      const now = new Date()
+      const threeDaysFromNow = new Date()
+      threeDaysFromNow.setDate(now.getDate() + 3)
+
+      this.logger.debug(`Verificando órdenes próximas a vencer: ${now.toISOString()}`)
+
+      // Buscar órdenes próximas a vencer que no han sido notificadas
+      const ordersAboutToExpire = await this.OrdenModel.find({
+        fechaFin: {
+          $gt: now,
+          $lt: threeDaysFromNow,
+        },
+        state: true,
+        notifiedExpiration: { $ne: true },
+      }).populate([
+        { path: "tecnicoId", select: "name email phone" },
+        { path: "solicitud", select: "trackingNumber InventoryCode maintenanceType" },
+      ])
+
+      if (ordersAboutToExpire.length === 0) {
+        return
+      }
+
+      this.logger.log(`Encontradas ${ordersAboutToExpire.length} órdenes próximas a vencer para notificar`)
+
+      // Procesar en lotes para mejor rendimiento
+      const batchSize = 5
+      const batches = Math.ceil(ordersAboutToExpire.length / batchSize)
+
+      for (let i = 0; i < batches; i++) {
+        const batch = ordersAboutToExpire.slice(i * batchSize, (i + 1) * batchSize)
+        const notificationPromises = batch.map(async (order) => {
+          await this.processOrderAboutToExpire(order, now)
+        })
+
+        await Promise.all(notificationPromises)
+      }
+    } catch (error) {
+      this.logger.error(`Error al verificar órdenes próximas a vencer: ${error.message}`, error.stack)
+    }
+  }
+
+  /**
+   * Procesa una orden próxima a vencer
+   * Envía notificaciones y actualiza el estado de notificación
+   */
+  private async processOrderAboutToExpire(order: OrdenesTrabajo, now: Date): Promise<void> {
+    try {
+      const daysRemaining = Math.ceil((order.fechaFin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      const userToNotify = order.tecnicoId
+
+      if (!userToNotify || !userToNotify.email) {
+        return
+      }
+
+      let assetInfo = "No disponible"
+      if (order.solicitud && order.solicitud.InventoryCode) {
+        const asset = await this.assetModel
+          .findOne({ inventoryCode: order.solicitud.InventoryCode })
+          .select("name location category")
+          .lean()
+
+        if (asset) {
+          assetInfo = `${asset.name} (${asset.categoryId.name || "Sin categoría"} - ${asset.location || "Sin ubicación"})`
+        }
+      }
+
+      // Determinar prioridad basada en días restantes
+      let prioridad = order.prioridad
+      if (daysRemaining <= 1) {
+        prioridad = "Alta"
+      } else if (daysRemaining <= 2) {
+        prioridad = "Media"
+      }
+
+      this.logger.log(
+        `Enviando notificación a ${userToNotify.name} (${userToNotify.email}) para orden ${order.radicado}`,
+      )
+
+      await this.notificationService.sendNotificationEmail(
+        {
+          to: userToNotify.email,
+          subject: `⏰ Orden de Trabajo Próxima a Vencer - ${order.radicado}`,
+          body: null,
+        },
+        null,
+        {
+          name: userToNotify.name,
+          radicado: order.radicado,
+          fechaFin: order.fechaFin.toLocaleDateString(),
+          daysRemaining: daysRemaining.toString(),
+          prioridad: prioridad,
+          assetInfo: assetInfo,
+        },
+      )
+
+      // Marcar la orden como notificada
+      await this.OrdenModel.findByIdAndUpdate(order._id, { notifiedExpiration: true })
+    } catch (error) {
+      this.logger.error(`Error al procesar orden próxima a vencer: ${error.message}`)
+    }
+  }
+
+  /**
+   * Valida una orden de trabajo antes de crearla
+   */
   private async validateWorkOrder(createDto: CreateWordOrdenDto): Promise<void> {
-    // Validar que la solicitud existe
+    // Verificar si la solicitud existe
     const solicitud = await this.maintenanceModel.findById(createDto.solicitud)
     if (!solicitud) {
       throw new BadRequestException("La solicitud de mantenimiento no existe")
     }
 
-    // Validar que no exista una orden de trabajo para esta solicitud
+    // Verificar si ya existe una orden para esta solicitud
     const existingWorkOrder = await this.OrdenModel.findOne({
-      "solicitud.solicitudId": createDto.solicitud,
+      solicitud: createDto.solicitud,
     })
 
     if (existingWorkOrder) {
       throw new BadRequestException(`Ya existe una orden de trabajo para la solicitud ${createDto.solicitud}`)
     }
 
-    // Validar que el técnico existe
+    // Verificar si el técnico existe
     const tecnico = await this.userModel.findById(createDto.tecnicoId)
     if (!tecnico) {
       throw new BadRequestException("El técnico asignado no existe")
     }
   }
 
+  /**
+   * Crea una nueva orden de trabajo
+   */
   async create(createDto: CreateWordOrdenDto): Promise<OrdenesTrabajo> {
     try {
-      // Validar la orden de trabajo
+      this.logger.log(`Creando nueva orden de trabajo para solicitud: ${createDto.solicitud}`)
+
+      // Validar la orden y las fechas
       await this.validateWorkOrder(createDto)
       await this.validateDates(createDto)
 
-      // Crear la orden de trabajo
+      // Crear y guardar la orden
       const createdItem = new this.OrdenModel(createDto)
       const savedItem = await createdItem.save()
 
       // Actualizar el estado de la solicitud
       await this.maintenanceModel.findByIdAndUpdate(createDto.solicitud, { workOrderStatus: true })
 
+      // Obtener información del técnico
+      const tecnico = await this.userModel.findById(createDto.tecnicoId).select("name email phone").lean()
+
+      // Obtener información de la solicitud
+      const solicitud = await this.maintenanceModel
+        .findById(createDto.solicitud)
+        .select("trackingNumber InventoryCode maintenanceType description")
+        .lean()
+
+      // Obtener información del activo
+      const assetInfo = await this.getAssetInfo(solicitud)
+
+      // Enviar notificación al técnico
+      if (tecnico && tecnico.email) {
+        this.logger.log(`Enviando notificación a técnico: ${tecnico.name} (${tecnico.email})`)
+
+        // Calcular días disponibles
+        const today = new Date()
+        const fechaFin = new Date(savedItem.fechaFin)
+        const diffTime = Math.abs(fechaFin.getTime() - today.getTime())
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+        // Determinar prioridad basada en días disponibles y tipo de mantenimiento
+        const prioridad = this.determinarPrioridad(diffDays, solicitud)
+
+        // Enviar notificación por email
+        await this.notificationService.sendTechnicianNotification(
+          {
+            to: tecnico.email,
+            subject: `🔧 Nueva Orden de Trabajo Asignada - ${savedItem.radicado}`,
+            body: null,
+          },
+          {
+            name: tecnico.name,
+            radicado: savedItem.radicado,
+            fechaInicio: savedItem.fechaInicio ? savedItem.fechaInicio.toLocaleDateString() : null,
+            fechaFin: savedItem.fechaFin.toLocaleDateString(),
+            email: tecnico.email,
+            prioridad: prioridad,
+            assetInfo: assetInfo,
+          },
+        )
+      }
+
+      this.logger.log(`Orden de trabajo creada exitosamente: ${savedItem.radicado}`)
       return savedItem
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error
       }
+      this.logger.error(`Error al crear orden de trabajo: ${error.message}`, error.stack)
       throw new BadRequestException("Error al crear la orden de trabajo: " + error.message)
     }
   }
 
+  /**
+   * Determina la prioridad de una orden basada en días disponibles y tipo de mantenimiento
+   */
+  private determinarPrioridad(diffDays: number, solicitud: any): string {
+    let prioridad = "Normal"
+
+    // Determinar prioridad basada en días disponibles
+    if (diffDays <= 2) {
+      prioridad = "Alta"
+    } else if (diffDays <= 5) {
+      prioridad = "Media"
+    }
+
+    // Si es mantenimiento correctivo, aumentar la prioridad
+    if (solicitud && solicitud.maintenanceType && solicitud.maintenanceType.toLowerCase().includes("correctivo")) {
+      if (prioridad === "Normal") prioridad = "Media"
+      else if (prioridad === "Media") prioridad = "Alta"
+    }
+
+    return prioridad
+  }
+
+  /**
+   * Obtiene información detallada de un activo
+   */
+  private async getAssetInfo(solicitud: any): Promise<string> {
+    let assetInfo = "No disponible"
+
+    if (solicitud && solicitud.InventoryCode) {
+      const asset = await this.assetModel
+        .findOne({ inventoryCode: solicitud.InventoryCode })
+        .select("name location category")
+        .lean()
+
+      if (asset) {
+        assetInfo = `${asset.name} (${asset.categoryId.name || "Sin categoría"} - ${asset.location || "Sin ubicación"})`
+      }
+    }
+
+    return assetInfo
+  }
+
+  /**
+   * Valida las fechas de una orden de trabajo
+   */
   private async validateDates(dto: CreateWordOrdenDto | UpdateWordOrdenDto): Promise<void> {
+    // Verificar que la fecha de inicio no sea posterior a la fecha de fin
     if (dto.fechaInicio && dto.fechaFin && new Date(dto.fechaInicio) > new Date(dto.fechaFin)) {
       throw new BadRequestException("La fecha de inicio no puede ser posterior a la fecha de fin.")
     }
-  }
-  async findOn(id: string): Promise<any> {
-    const orden = await this.OrdenModel.findById(id)
-      .populate("tecnicoId", "name")
-      .populate("instructorId", "name")
-      .populate({
-        path: "solicitud",
-        select: "serialNumber",
-      })
-      .populate({
-        path: "maintenances",
-        select: "description",
-      })
-      .lean({ virtuals: true })
-      .exec()
 
-    if (!orden) {
-      throw new Error("Orden de trabajo no encontrada")
+    // Verificar que la fecha de fin no sea anterior a la fecha actual
+    const now = new Date()
+    if (dto.fechaFin && new Date(dto.fechaFin) < now) {
+      throw new BadRequestException("La fecha de fin no puede ser anterior a la fecha actual.")
     }
+  }
 
-    let asset = null
+  /**
+   * Encuentra una orden de trabajo por ID con detalles
+   */
+  async findOn(id: string): Promise<any> {
+    try {
+      this.logger.log(`Buscando orden de trabajo con ID: ${id}`)
 
-    if (orden.solicitud?.serialNumber) {
-      asset = await this.assetModel
-        .findOne({ serialNumber: orden.solicitud.serialNumber }, "name serialNumber")
+      // Buscar la orden con sus relaciones
+      const orden = await this.OrdenModel.findById(id)
+        .populate("tecnicoId", "name")
+        .populate("instructorId", "name")
+        .populate({
+          path: "solicitud",
+          select: "serialNumber trackingNumber maintenanceType description",
+        })
+        .populate({
+          path: "maintenances",
+          select:
+            "description typeMaintenance observation sparePartsStatus sparePartsDetails technicalSignature createdAt",
+        })
+        .lean({ virtuals: true })
+        .exec()
+
+      if (!orden) {
+        this.logger.warn(`Orden de trabajo no encontrada: ${id}`)
+        throw new NotFoundException("Orden de trabajo no encontrada")
+      }
+
+      // Buscar información del activo
+      let asset = null
+      if (orden.solicitud?.serialNumber) {
+        asset = await this.assetModel
+          .findOne({ serialNumber: orden.solicitud.serialNumber })
+          .select("name serialNumber inventoryCode location category status")
+          .lean()
+          .exec()
+      }
+
+      // Buscar informes de trabajo asociados
+      const informes = await this.workReportModel
+        .find({ orderId: id })
+        .select("costs hours responses observation workDone status createdAt")
         .lean()
         .exec()
-    }
 
-    return {
-      ...orden,
-      asset, // Agregar asset al objeto de respuesta en vez de modificar solicitud
-      message: !orden.maintenances?.length ? "No tiene mantenimientos realizados" : undefined,
-    }
-  }
+      // Calcular días restantes o días de retraso
+      const now = new Date()
+      const fechaFin = new Date(orden.fechaFin)
+      const diffTime = fechaFin.getTime() - now.getTime()
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
-  async findAllWithDetails(instructorId?: string, tecnicoId?: string): Promise<OrdenesTrabajo[]> {
-    const query: any = {}
+      const diasRestantes = diffDays > 0 ? diffDays : 0
+      const diasRetraso = diffDays < 0 ? Math.abs(diffDays) : 0
 
-    if (instructorId) {
-      query.instructorId = instructorId
-    }
-
-    if (tecnicoId) {
-      query.tecnicoId = tecnicoId
-    }
-
-    const ordenes = await this.OrdenModel.find(query)
-      .populate("tecnicoId", "name")
-      .populate("instructorId", "name")
-      .populate({
-        path: "solicitud",
-        select: "serialNumber",
-      })
-      .lean()
-      .exec()
-
-    for (const orden of ordenes) {
-      if (orden.solicitud && orden.solicitud.serialNumber) {
-        const asset = await this.assetModel
-          .findOne({ serialNumber: orden.solicitud.serialNumber })
-          .select("name image location")
-          .lean()
-        ;(orden.solicitud as any).asset = asset
+      // Construir respuesta enriquecida
+      return {
+        ...orden,
+        asset,
+        informes,
+        estadoTiempo: {
+          diasRestantes,
+          diasRetraso,
+          estaVencida: diffDays < 0 && orden.state,
+          estaProximaAVencer: diasRestantes <= 3 && diasRestantes > 0 && orden.state,
+        },
+        message: !orden.maintenances?.length ? "No tiene mantenimientos realizados" : undefined,
       }
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error
+      }
+      this.logger.error(`Error al buscar orden de trabajo: ${error.message}`, error.stack)
+      throw new BadRequestException("Error al buscar la orden de trabajo: " + error.message)
     }
-
-    return ordenes as OrdenesTrabajo[]
   }
+
+  /**
+   * Encuentra todas las órdenes con detalles, opcionalmente filtradas por instructor o técnico
+   */
+  async findAllWithDetails(instructorId?: string, tecnicoId?: string): Promise<OrdenesTrabajo[]> {
+    try {
+      const query: any = {}
+
+      // Aplicar filtros si se proporcionan
+      if (instructorId) {
+        query.instructorId = instructorId
+      }
+
+      if (tecnicoId) {
+        query.tecnicoId = tecnicoId
+      }
+
+      this.logger.log(`Buscando órdenes de trabajo con filtros: ${JSON.stringify(query)}`)
+
+      // Buscar órdenes con sus relaciones
+      const ordenes = await this.OrdenModel.find(query)
+        .populate("tecnicoId", "name email phone")
+        .populate("instructorId", "name email")
+        .populate({
+          path: "solicitud",
+          select: "serialNumber trackingNumber maintenanceType description",
+        })
+        .lean()
+        .exec()
+
+      // Enriquecer las órdenes con información de activos
+      const ordenesEnriquecidas = await Promise.all(
+        ordenes.map(async (orden) => {
+          // Buscar información del activo
+          if (orden.solicitud && orden.solicitud.serialNumber) {
+            const asset = await this.assetModel
+              .findOne({ serialNumber: orden.solicitud.serialNumber })
+              .select("name image location category status")
+              .lean()
+
+            if (asset) {
+              ;(orden.solicitud as any).asset = asset
+            }
+          }
+
+          // Calcular días restantes o días de retraso
+          const now = new Date()
+          const fechaFin = new Date(orden.fechaFin)
+          const diffTime = fechaFin.getTime() - now.getTime()
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+          const diasRestantes = diffDays > 0 ? diffDays : 0
+          const diasRetraso = diffDays < 0 ? Math.abs(diffDays) : 0
+
+          // Agregar información de tiempo
+          return {
+            ...orden,
+            estadoTiempo: {
+              diasRestantes,
+              diasRetraso,
+              estaVencida: diffDays < 0 && orden.state,
+              estaProximaAVencer: diasRestantes <= 3 && diasRestantes > 0 && orden.state,
+            },
+          }
+        }),
+      )
+
+      return ordenesEnriquecidas as OrdenesTrabajo[]
+    } catch (error) {
+      this.logger.error(`Error al buscar órdenes con detalles: ${error.message}`, error.stack)
+      throw new BadRequestException("Error al buscar órdenes de trabajo: " + error.message)
+    }
+  }
+
   /**
    * Encuentra todas las órdenes de trabajo asignadas a un técnico específico
-   * @param userId - ID del usuario a verificar
-   * @returns Promise con array de órdenes de trabajo
+   * o todos los activos si el usuario es almacenista
    */
-
   async findAllTecnico(userId: string): Promise<TecnicoOrdenesResponse | any> {
-    if (!Types.ObjectId.isValid(userId)) {
-      throw new NotFoundException("ID de usuario inválido")
-    }
-
-    // Buscar el usuario sin filtrar por rol específico
-    const user = await this.userModel
-      .findOne({
-        _id: userId,
-        state: true,
-      })
-      .populate("assignedRol") // Asumiendo que assignedRol es una referencia al modelo de roles
-
-    if (!user) {
-      throw new NotFoundException(`Usuario con ID ${userId} no encontrado`)
-    }
-
-    // Obtener el nombre o código del rol del usuario
-    const userRole = user.assignedRol.name
-
-    // Si el usuario es almacenista, devolver todos los bienes
-    if (userRole === "almacenista" || userRole === "Almacenista") {
-      // Consultar todos los bienes/activos
-      const activos = await this.assetModel
-        .find({ status: true })
-        .select("name location acquisitionDate inventoryCode serialNumber categoryId status")
-        .populate("categoryId", "name")
-        .exec()
-      // Crear una respuesta específica para almacenistas
-      return {
-        usuario: {
-          id: user._id.toString(),
-          nombre: user.name,
-          email: user.email,
-          telefono: user.phone || "No disponible",
-          cargo: user.assignedPosition,
-          documento: {
-            tipo: user.typeDocument,
-            numero: user.numberDocument,
-          },
-        },
-        activos: activos.map((activo) => ({
-          id: activo._id.toString(),
-          nombre: activo.name,
-          ubicacion: activo.location,
-          fechaAdquisicion: activo.acquisitionDate,
-          codigoInventario: activo.inventoryCode,
-          numeroSerie: activo.serialNumber,
-          categoria: activo.categoryId ? activo.categoryId.name : "No disponible",
-          estado: activo.status,
-          // Agrega aquí cualquier otro campo relevante de los activos
-        })),
-        total: activos.length,
+    try {
+      if (!Types.ObjectId.isValid(userId)) {
+        throw new NotFoundException("ID de usuario inválido")
       }
-    }
 
-    // Para los demás roles, continuar con la lógica existente
+      // Buscar el usuario sin filtrar por rol específico
+      const user = await this.userModel
+        .findOne({
+          _id: userId,
+          state: true,
+        })
+        .populate("assignedRol")
+
+      if (!user) {
+        throw new NotFoundException(`Usuario con ID ${userId} no encontrado`)
+      }
+
+      // Obtener el nombre o código del rol del usuario
+      const userRole = user.assignedRol.name
+
+      // Si el usuario es almacenista, devolver todos los bienes
+      if (userRole.toLowerCase() === "almacenista") {
+        return await this.getAlmacenistaResponse(user)
+      }
+
+      // Para los demás roles, continuar con la lógica existente
+      return await this.getTecnicoResponse(user, userRole)
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error
+      }
+      this.logger.error(`Error al buscar órdenes para técnico: ${error.message}`, error.stack)
+      throw new BadRequestException("Error al buscar órdenes para técnico: " + error.message)
+    }
+  }
+
+  /**
+   * Genera respuesta específica para almacenistas
+   */
+  private async getAlmacenistaResponse(user: any): Promise<any> {
+    // Consultar todos los bienes/activos
+    const activos = await this.assetModel
+      .find({ status: true })
+      .select("name location acquisitionDate inventoryCode serialNumber categoryId status")
+      .populate("categoryId", "name")
+      .exec()
+
+    this.logger.log(`Generando respuesta para almacenista: ${user.name} con ${activos.length} activos`)
+
+    // Crear una respuesta específica para almacenistas
+    return {
+      usuario: this.formatUserInfo(user),
+      activos: activos.map((activo) => ({
+        id: activo._id.toString(),
+        nombre: activo.name,
+        ubicacion: activo.location,
+        fechaAdquisicion: activo.acquisitionDate,
+        codigoInventario: activo.inventoryCode,
+        numeroSerie: activo.serialNumber,
+        categoria: activo.categoryId ? activo.categoryId.name : "No disponible",
+        estado: activo.status,
+      })),
+      total: activos.length,
+    }
+  }
+
+  /**
+   * Genera respuesta para técnicos e instructores
+   */
+  private async getTecnicoResponse(user: any, userRole: string): Promise<TecnicoOrdenesResponse> {
     // Crear un filtro dinámico basado en el rol del usuario
     const ordenesFilter: any = { state: true }
 
     // Aplicar filtros según el rol
-    if (userRole === "técnico" || userRole === "Técnico") {
-      ordenesFilter.tecnicoId = userId
-    } else if (userRole === "instructor" || userRole === "Instructor") {
-      ordenesFilter.instructorId = userId
+    if (userRole.toLowerCase() === "técnico") {
+      ordenesFilter.tecnicoId = user._id
+    } else if (userRole.toLowerCase() === "instructor") {
+      ordenesFilter.instructorId = user._id
     }
-    // Para administradores o supervisores, no se aplica filtro adicional
+
+    this.logger.log(`Buscando órdenes para ${userRole}: ${user.name} con filtro: ${JSON.stringify(ordenesFilter)}`)
 
     // Aplicar el filtro dinámico a la consulta
     const ordenes = await this.OrdenModel.find(ordenesFilter).exec()
 
-    // El resto del código permanece igual
+    // Obtener IDs de órdenes y solicitudes
     const ordenesIds = ordenes.map((orden) => orden._id)
     const solicitudIds = ordenes.map((orden) => orden.solicitud)
 
     // Buscar las solicitudes de mantenimiento
-    const solicitudes = await this.maintenanceModel
-      .find({
-        _id: { $in: solicitudIds },
-      })
-      .exec()
+    const solicitudes = await this.maintenanceModel.find({ _id: { $in: solicitudIds } }).exec()
 
     // Crear un mapa de solicitudes por ID
     const solicitudesPorId = new Map()
@@ -349,13 +658,13 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
     })
 
     // Obtener los números de serie de los activos
-    const serialNumbers = solicitudes.map((solicitud) => solicitud.serialNumber)
+    const serialNumbers = solicitudes
+      .filter((solicitud) => solicitud.serialNumber)
+      .map((solicitud) => solicitud.serialNumber)
 
     // Buscar los activos por número de serie
     const activos = await this.assetModel
-      .find({
-        serialNumber: { $in: serialNumbers },
-      })
+      .find({ serialNumber: { $in: serialNumbers } })
       .select("name location acquisitionDate inventoryCode serialNumber categoryId status")
       .populate("categoryId", "name")
       .exec()
@@ -366,38 +675,64 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       activosPorSerial.set(activo.serialNumber, activo)
     })
 
-    const mantenimientos = await this.MantimientoModel.find({
-      wordOrdenId: { $in: ordenesIds },
-    }).exec()
+    // Buscar mantenimientos e informes
+    const [mantenimientos, informes] = await Promise.all([
+      this.MantimientoModel.find({ wordOrdenId: { $in: ordenesIds } }).exec(),
+      this.workReportModel.find({ orderId: { $in: ordenesIds } }).exec(),
+    ])
 
-    const informes = await this.workReportModel
-      .find({
-        orderId: { $in: ordenesIds },
-      })
-      .exec()
+    // Organizar mantenimientos e informes por orden
+    const mantenimientosPorOrden = this.groupByOrderId(mantenimientos, "wordOrdenId")
+    const informesPorOrden = this.groupByOrderId(informes, "orderId")
 
-    const mantenimientosPorOrden = new Map()
-    mantenimientos.forEach((mantenimiento) => {
-      const ordenId = mantenimiento.wordOrdenId.toString()
-      if (!mantenimientosPorOrden.has(ordenId)) {
-        mantenimientosPorOrden.set(ordenId, [])
+    // Calcular totales
+    const totalMantenimientos = mantenimientos.length
+    const totalInformes = informes.length
+
+    // Construir respuesta detallada
+    const ordenesConDetalles = await this.buildDetailedOrders(
+      ordenes,
+      solicitudesPorId,
+      activosPorSerial,
+      mantenimientosPorOrden,
+      informesPorOrden,
+    )
+
+    return {
+      usuario: this.formatUserInfo(user),
+      ordenes: ordenesConDetalles,
+      total: ordenes.length,
+      totalMantenimientos,
+      totalInformes,
+    }
+  }
+
+  /**
+   * Agrupa elementos por ID de orden
+   */
+  private groupByOrderId(items: any[], idField: string): Map<string, any[]> {
+    const itemsPorOrden = new Map()
+    items.forEach((item) => {
+      const ordenId = item[idField].toString()
+      if (!itemsPorOrden.has(ordenId)) {
+        itemsPorOrden.set(ordenId, [])
       }
-      mantenimientosPorOrden.get(ordenId).push(mantenimiento)
+      itemsPorOrden.get(ordenId).push(item)
     })
+    return itemsPorOrden
+  }
 
-    const informesPorOrden = new Map()
-    informes.forEach((informe) => {
-      const ordenId = informe.orderId.toString()
-      if (!informesPorOrden.has(ordenId)) {
-        informesPorOrden.set(ordenId, [])
-      }
-      informesPorOrden.get(ordenId).push(informe)
-    })
-
-    let totalMantenimientos = 0
-    let totalInformes = 0
-
-    const ordenesConDetalles = ordenes.map((orden) => {
+  /**
+   * Construye órdenes detalladas con toda la información relacionada
+   */
+  private async buildDetailedOrders(
+    ordenes: any[],
+    solicitudesPorId: Map<string, any>,
+    activosPorSerial: Map<string, any>,
+    mantenimientosPorOrden: Map<string, any[]>,
+    informesPorOrden: Map<string, any[]>,
+  ): Promise<any[]> {
+    return ordenes.map((orden) => {
       const ordenId = orden._id.toString()
       const mantenimientosDeOrden = mantenimientosPorOrden.get(ordenId) || []
       const informesDeOrden = informesPorOrden.get(ordenId) || []
@@ -411,8 +746,8 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
         nombre: "No disponible",
         ubicacion: "No disponible",
         fechaAdquisicion: new Date(),
-        codigoInventario: "no disponible",
-        categoria: "no disponible",
+        codigoInventario: "No disponible",
+        categoria: "No disponible",
       }
 
       if (solicitud && solicitud.serialNumber) {
@@ -429,8 +764,14 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
         }
       }
 
-      totalMantenimientos += mantenimientosDeOrden.length
-      totalInformes += informesDeOrden.length
+      // Calcular días restantes o días de retraso
+      const now = new Date()
+      const fechaFin = new Date(orden.fechaFin)
+      const diffTime = fechaFin.getTime() - now.getTime()
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+      const diasRestantes = diffDays > 0 ? diffDays : 0
+      const diasRetraso = diffDays < 0 ? Math.abs(diffDays) : 0
 
       return {
         id: ordenId,
@@ -440,10 +781,18 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
         prioridad: orden.prioridad,
         solicitud: {
           solicitudId: orden.solicitud.toString(),
+          trackingNumber: solicitud ? solicitud.trackingNumber : "No disponible",
+          maintenanceType: solicitud ? solicitud.maintenanceType : "No disponible",
         },
         estado: orden.state,
-        fechaCreacion: orden.fechaFin,
-        fechaActualizacion: orden.fechaInicio,
+        fechaCreacion: orden.createdAt,
+        fechaActualizacion: orden.updatedAt,
+        estadoTiempo: {
+          diasRestantes,
+          diasRetraso,
+          estaVencida: diffDays < 0 && orden.state,
+          estaProximaAVencer: diasRestantes <= 3 && diasRestantes > 0 && orden.state,
+        },
         // Agregar información del activo
         activo: [activoInfo],
         mantenimientos: mantenimientosDeOrden.map((m) => ({
@@ -468,38 +817,107 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
         })),
       }
     })
-
-    const response: TecnicoOrdenesResponse = {
-      usuario: {
-        id: user._id.toString(),
-        nombre: user.name,
-        email: user.email,
-        telefono: user.phone || "No disponible",
-        cargo: user.assignedPosition,
-        documento: {
-          tipo: user.typeDocument,
-          numero: user.numberDocument,
-        },
-      },
-      ordenes: ordenesConDetalles,
-      total: ordenes.length,
-      totalMantenimientos,
-      totalInformes,
-    }
-
-    return response
   }
-  async getWorkOrdenstatics(): Promise<{}> {
-    const totalOrders = await this.OrdenModel.find().exec()
-    const executedOrders = totalOrders.filter((order) => order.state === true).length
-    const expiredOrders = totalOrders.filter(
-      (order) => new Date(order.fechaFin) < new Date() && order.state === false,
-    ).length
 
+  /**
+   * Formatea la información del usuario para la respuesta
+   */
+  private formatUserInfo(user: any): any {
     return {
-      All: totalOrders.length,
-      Executed: executedOrders,
-      Expired: expiredOrders,
+      id: user._id.toString(),
+      nombre: user.name,
+      email: user.email,
+      telefono: user.phone || "No disponible",
+      cargo: user.assignedPosition,
+      documento: {
+        tipo: user.typeDocument,
+        numero: user.numberDocument,
+      },
+    }
+  }
+
+  /**
+   * Obtiene estadísticas de órdenes de trabajo
+   */
+  async getWorkOrdenstatics(): Promise<any> {
+    try {
+      this.logger.log("Generando estadísticas de órdenes de trabajo")
+
+      const now = new Date()
+
+      // Obtener todas las órdenes
+      const totalOrders = await this.OrdenModel.find().exec()
+
+      // Filtrar por diferentes estados
+      const executedOrders = totalOrders.filter((order) => order.state === true).length
+      const expiredOrders = totalOrders.filter(
+        (order) => new Date(order.fechaFin) < now && order.state === false,
+      ).length
+      const pendingOrders = totalOrders.filter(
+        (order) => new Date(order.fechaFin) >= now && order.state === true,
+      ).length
+      const aboutToExpireOrders = totalOrders.filter((order) => {
+        const fechaFin = new Date(order.fechaFin)
+        const diffTime = fechaFin.getTime() - now.getTime()
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+        return diffDays <= 3 && diffDays > 0 && order.state === true
+      }).length
+
+      // Estadísticas por técnico
+      const ordersByTechnician = await this.OrdenModel.aggregate([
+        {
+          $group: {
+            _id: "$tecnicoId",
+            total: { $sum: 1 },
+            completed: {
+              $sum: {
+                $cond: [{ $eq: ["$state", true] }, 1, 0],
+              },
+            },
+            expired: {
+              $sum: {
+                $cond: [{ $and: [{ $lt: ["$fechaFin", now] }, { $eq: ["$state", false] }] }, 1, 0],
+              },
+            },
+          },
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "_id",
+            foreignField: "_id",
+            as: "tecnico",
+          },
+        },
+        {
+          $unwind: "$tecnico",
+        },
+        {
+          $project: {
+            _id: 1,
+            tecnicoNombre: "$tecnico.name",
+            total: 1,
+            completed: 1,
+            expired: 1,
+            pendientes: { $subtract: ["$total", { $add: ["$completed", "$expired"] }] },
+          },
+        },
+      ])
+
+      return {
+        resumen: {
+          total: totalOrders.length,
+          ejecutadas: executedOrders,
+          vencidas: expiredOrders,
+          pendientes: pendingOrders,
+          proximasAVencer: aboutToExpireOrders,
+        },
+        porTecnico: ordersByTechnician,
+        ultimaActualizacion: now,
+      }
+    } catch (error) {
+      this.logger.error(`Error al generar estadísticas: ${error.message}`, error.stack)
+      throw new BadRequestException("Error al generar estadísticas: " + error.message)
     }
   }
 }
