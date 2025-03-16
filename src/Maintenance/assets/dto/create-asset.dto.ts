@@ -31,9 +31,7 @@ image?:string;
   @IsNotEmpty()
   equipmentType: string;
 
-  @IsMongoId()
-  @IsNotEmpty()
-  trainingCenterId: Types.ObjectId;
+ 
 
   @IsString()
   @IsNotEmpty()
@@ -50,6 +48,10 @@ image?:string;
   @IsMongoId()
   @IsNotEmpty()
   categoryId: string;
+
+   @IsMongoId()
+   @IsNotEmpty()
+  environmentId : string
 
   @IsObject()
   @IsNotEmpty()

@@ -6,6 +6,7 @@ import { Assets, AssetsSchema } from './entities/asset.entity';
 import { MulterModule } from '@nestjs/platform-express';
 import { CategoriesModule } from '../categories/categories.module';
 import { WorkReportModule } from '../work_report/work_report.module';
+import { EnvironmentsModule } from 'src/environments/environments.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { WorkReportModule } from '../work_report/work_report.module';
       dest: './uploads/assets',
     }),
     CategoriesModule,
+    EnvironmentsModule,
     forwardRef(() => WorkReportModule), 
   ],
   controllers: [AssetsController],

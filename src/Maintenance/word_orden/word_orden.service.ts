@@ -43,7 +43,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
    * Actualiza órdenes expiradas cada minuto
    * Cambia el estado y prioridad de las órdenes vencidas
    */
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_30_MINUTES)
   async updateExpiredOrders(): Promise<void> {
     try {
       const now = new Date()
@@ -142,7 +142,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
    * Verifica órdenes próximas a vencer cada minuto
    * Envía notificaciones a los técnicos
    */
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_30_MINUTES)
   async checkOrdersAboutToExpire(): Promise<void> {
     try {
       const now = new Date()

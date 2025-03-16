@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import mongoose, { Document } from "mongoose";
-import { Rol } from "src/Segurity/rol/entities/rol.entity";
 
 @Schema({timestamps: true})
 export class Category extends Document{
@@ -16,8 +15,7 @@ export class Category extends Document{
     @Prop({ type:[String], required: true})
     specs: string[] 
 
-    @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Rol' })
-    assignedRol?: Rol;
+    
 
     @Prop()
     state?: boolean

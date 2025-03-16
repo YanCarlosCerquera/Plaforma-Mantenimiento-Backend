@@ -1,4 +1,3 @@
-import { ApiProperty } from "@nestjs/swagger";
 import { IsArray, IsBoolean, IsMongoId, IsNotEmpty, IsOptional, IsString } from "class-validator";
 
 export class CreateCategoryDto {
@@ -10,11 +9,6 @@ export class CreateCategoryDto {
     @IsArray()
     @IsString({ each: true })
     operationVars: string[];
-
-    @IsNotEmpty({ message: 'Los accesorios son obligatorios' })
-    @IsArray()
-    @IsString({ each: true })
-    accessories: string[];
 
     @IsNotEmpty({ message: 'Las especificaciones son obligatorias' })
     @IsArray()

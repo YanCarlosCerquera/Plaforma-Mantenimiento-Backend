@@ -6,6 +6,7 @@ export interface INotificationService {
     notificaciones?: NotificarFEhcas,
   ): Promise<void>
   sendTechnicianNotification(email: Email, data: TechnicianNotificationData): Promise<void>
+  sendEmailWithAttachment(email: EmailWithAttachment): Promise<void>
 }
 
 export interface NotificationData {
@@ -16,6 +17,9 @@ export interface NotificationData {
   description: string
   requesterName?: string
   isRequester: boolean
+  role?: string // Ahora se usa para diferenciar entre Administrador e Instructor
+  environmentName?: string // Nombre del ambiente donde está el activo
+  assetInfo?: string // Información básica del activo
 }
 
 export interface NotificarFEhcas {
@@ -42,6 +46,19 @@ export interface Email {
   to: string
   subject: string
   body?: string // Made optional
+}
+
+export interface EmailWithAttachment {
+  to: string
+  subject: string
+  body: string
+  attachments: Attachment[]
+}
+
+export interface Attachment {
+  filename: string
+  content: Buffer | string
+  contentType?: string
 }
 
 export interface NotificationConfig {

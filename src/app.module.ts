@@ -26,6 +26,7 @@
   import { WssModule } from './Maintenance/application-maintenance/wss.module';
   import { ConfigModule } from './Parametrization/config/config.module';
   import { ConfigService } from './Parametrization/config/config.service';
+import { EnvironmentsModule } from './environments/environments.module';
 
   @Module({
     imports: [
@@ -72,6 +73,7 @@
 
       // Parametrización
       DepartamentsModule,
+      EnvironmentsModule,
 
       
       TrainingCentersModule,
@@ -87,6 +89,7 @@
       MaintenanceModule,
       WorkReportModule,
       WssModule,
+      EnvironmentsModule,
     ],
     controllers: [AppController],
     providers: [AppService],

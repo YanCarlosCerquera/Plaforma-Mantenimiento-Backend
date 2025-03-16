@@ -27,7 +27,7 @@ export class AssetsService extends GenericService<Assets, CreateAssetDto, Update
   async findOne(id: string): Promise<Assets> {
     return await this.AssetsModel.findById(id)
       .populate({
-        path: 'trainingCenterId',
+        path: 'environmentId',
         select: 'name',
       })
       .populate({
@@ -40,7 +40,7 @@ export class AssetsService extends GenericService<Assets, CreateAssetDto, Update
   async findAll(): Promise<Assets[]> {
     const assets = await this.AssetsModel.find()
         .populate({
-            path: 'trainingCenterId',
+            path: 'environmentId',
             select: 'name',
         })
         .populate({
@@ -67,7 +67,7 @@ export class AssetsService extends GenericService<Assets, CreateAssetDto, Update
 }
 
   async InventotyCode(code: string): Promise<Assets | null> {
-    return await this.AssetsModel.findOne({ inventoryCode: code }).populate('trainingCenterId', 'name')
+    return await this.AssetsModel.findOne({ inventoryCode: code }).populate('environmentId', 'name')
     .exec();
   }
 

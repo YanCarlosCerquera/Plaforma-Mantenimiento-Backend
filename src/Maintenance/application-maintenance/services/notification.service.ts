@@ -6,6 +6,7 @@ import type {
   Email,
   NotificarFEhcas,
   TechnicianNotificationData,
+  EmailWithAttachment,
 } from "../interfaces/notification.interface"
 import axios from "axios"
 import { MailerService } from "@nestjs-modules/mailer"
@@ -47,12 +48,25 @@ export class NotificationService implements INotificationService {
     }
   }
 
-  /**
-   * Envía un correo electrónico de notificación
-   * @param email Datos del correo
-   * @param notificationData Datos de notificación para técnicos
-   * @param notificaciones Datos de notificación para órdenes próximas a vencer
-   */
+  // Asegurémonos de que la verificación de roles sea insensible a mayúsculas/minúsculas
+  // para evitar problemas similares en el futuro
+
+  private generateEmailBodyByRole(data: NotificationData): string {
+    // Convertir el rol a minúsculas para comparación insensible a mayúsculas/minúsculas
+    const role = data.role?.toLowerCase()
+
+    if (data.isRequester) {
+      return this.generateRequesterEmailBody(data)
+    } else if (role === "administrador" || role === "admin") {
+      return this.generateAdminEmailBody(data)
+    } else if (role === "instructor") {
+      return this.generateInstructorEmailBody(data)
+    } else {
+      return this.generateTechnicianEmailBody(data)
+    }
+  }
+
+  // Reemplazar el bloque de condiciones en sendNotificationEmail con una llamada a este método
   async sendNotificationEmail(
     email: Email,
     notificationData?: NotificationData,
@@ -63,7 +77,8 @@ export class NotificationService implements INotificationService {
       let recipientName = "Usuario"
 
       if (!finalBody && notificationData) {
-        finalBody = this.generateTechnicianEmailBody(notificationData)
+        // Usar el nuevo método para determinar el cuerpo del correo
+        finalBody = this.generateEmailBodyByRole(notificationData)
         recipientName = notificationData.recipientName
       } else if (!finalBody && notificaciones) {
         finalBody = this.generateEmailBody(notificaciones)
@@ -77,12 +92,34 @@ export class NotificationService implements INotificationService {
       await this.mailerService.sendMail({
         to: email.to,
         subject: email.subject,
-        html: this.wrapEmailInTemplate(finalBody, recipientName),
+        html: finalBody,
       })
 
       this.logger.log(`✅ Correo enviado exitosamente a: ${email.to}`)
     } catch (error) {
       this.logger.error(`❌ Error al enviar correo a ${email.to}: ${error.message}`, error.stack)
+      throw error
+    }
+  }
+
+  /**
+   * Envía un correo electrónico con archivos adjuntos
+   * @param email Datos del correo con archivos adjuntos
+   */
+  async sendEmailWithAttachment(email: EmailWithAttachment): Promise<void> {
+    try {
+      this.logger.log(`Preparando envío de correo con adjunto a: ${email.to}`)
+
+      await this.mailerService.sendMail({
+        to: email.to,
+        subject: email.subject,
+        html: email.body,
+        attachments: email.attachments,
+      })
+
+      this.logger.log(`✅ Correo con adjunto enviado exitosamente a: ${email.to}`)
+    } catch (error) {
+      this.logger.error(`❌ Error al enviar correo con adjunto a ${email.to}: ${error.message}`, error.stack)
       throw error
     }
   }
@@ -140,66 +177,167 @@ export class NotificationService implements INotificationService {
     }
   }
 
-  /**
-   * Crea un mensaje de notificación para Telegram
-   * @param data Datos de la notificación
-   */
+  // También actualizar el método createNotificationMessage para usar la misma lógica
   private createNotificationMessage(data: NotificationData): string {
-    return `⚡ *Nueva Orden de Trabajo Asignada*
-¡Hola ${data.recipientName}!
+    // Mensaje simplificado para Telegram
+    let title = "Nueva Solicitud de Mantenimiento"
+    const role = data.role?.toLowerCase()
 
-Se le ha asignado una nueva orden de trabajo:
-📋 *Detalles:*
-• N° Seguimiento: #${data.trackingNumber}
-• Tipo: ${data.maintenanceType}
-• Solicitante: ${data.requesterName || "No especificado"}
-• Descripción: ${data.description.substring(0, 100)}${data.description.length > 100 ? "..." : ""}
+    if (data.isRequester) {
+      title = "Su Solicitud de Mantenimiento ha sido Registrada"
+    } else if (role === "administrador" || role === "admin") {
+      title = "Nueva Solicitud de Mantenimiento - Para Administrador"
+    } else if (role === "instructor") {
+      title = "Nueva Solicitud de Mantenimiento - Para Instructor"
+    }
 
-⚠️ *Acción Requerida:* Por favor, revise y atienda esta orden lo antes posible.
+    let message = `${title}
 
-🌐 *Enlaces Útiles:*
-• Portal de Mantenimiento: https://mantenimiento.sena.edu.co
-• Documentación: https://docs.mantenimiento.sena.edu.co
+Hola ${data.recipientName},
 
-_Este es un mensaje automático, por favor no responder directamente._`
+Detalles:
+- Seguimiento: #${data.trackingNumber}
+- Tipo: ${data.maintenanceType}
+- Solicitante: ${data.requesterName || "No especificado"}
+
+Descripción: 
+${data.description.substring(0, 100)}${data.description.length > 100 ? "..." : ""}`
+
+    // Agregar información del ambiente si está disponible
+    if (data.environmentName) {
+      message += `\n\nAmbiente: ${data.environmentName}`
+    }
+
+    // Agregar información del activo si está disponible
+    if (data.assetInfo) {
+      message += `\n\nActivo: ${data.assetInfo}`
+    }
+
+    // Agregar mensaje final según el tipo de destinatario
+    if (data.isRequester) {
+      message += "\n\nSu solicitud será atendida a la brevedad posible."
+    } else if (role === "administrador" || role === "admin") {
+      message += "\n\nComo Administrador, por favor supervise esta solicitud en el sistema."
+    } else if (role === "instructor") {
+      message += "\n\nComo Instructor responsable del ambiente, por favor revise esta solicitud."
+    } else {
+      message += "\n\nPor favor revise esta solicitud en el sistema."
+    }
+
+    return message
   }
 
   /**
-   * Genera el cuerpo del correo para técnicos
+   * Genera el cuerpo del correo para solicitantes
+   * @param data Datos de la notificación
+   */
+  private generateRequesterEmailBody(data: NotificationData): string {
+    return `
+<h2>Su Solicitud de Mantenimiento ha sido Registrada</h2>
+
+<p>Estimado/a ${data.recipientName},</p>
+
+<p>Le informamos que su solicitud de mantenimiento ha sido registrada exitosamente en nuestro sistema:</p>
+
+<ul>
+  <li><strong>N° Seguimiento:</strong> #${data.trackingNumber}</li>
+  <li><strong>Tipo:</strong> ${data.maintenanceType}</li>
+  <li><strong>Descripción:</strong> ${data.description || "Sin descripción"}</li>
+</ul>
+
+<p>Su solicitud será atendida a la brevedad posible. Puede consultar el estado de su solicitud utilizando el número de seguimiento.</p>
+
+<p>Gracias por su atención.</p>
+
+<hr>
+<p><em>Este es un mensaje automático, por favor no responda a este correo.</em></p>
+    `
+  }
+
+  /**
+   * Genera el cuerpo del correo para administradores
+   * @param data Datos de la notificación
+   */
+  private generateAdminEmailBody(data: NotificationData): string {
+    return `
+<h2>Nueva Solicitud de Mantenimiento - Para Administrador</h2>
+
+<p>Estimado/a Administrador/a ${data.recipientName},</p>
+
+<p>Le informamos que se ha registrado una nueva solicitud de mantenimiento que requiere su supervisión:</p>
+
+<ul>
+  <li><strong>N° Seguimiento:</strong> #${data.trackingNumber}</li>
+  <li><strong>Tipo:</strong> ${data.maintenanceType}</li>
+  <li><strong>Solicitante:</strong> ${data.requesterName || "No especificado"}</li>
+  <li><strong>Descripción:</strong> ${data.description || "Sin descripción"}</li>
+  ${data.environmentName ? `<li><strong>Ambiente:</strong> ${data.environmentName}</li>` : ""}
+</ul>
+
+<p>Como Administrador del sistema, por favor supervise esta solicitud y asigne los recursos necesarios para su atención.</p>
+
+<p>Gracias por su atención.</p>
+
+<hr>
+<p><em>Este es un mensaje automático, por favor no responda a este correo.</em></p>
+    `
+  }
+
+  /**
+   * Genera el cuerpo del correo para instructores
+   * @param data Datos de la notificación
+   */
+  private generateInstructorEmailBody(data: NotificationData): string {
+    return `
+<h2>Nueva Solicitud de Mantenimiento - Para Instructor</h2>
+
+<p>Estimado/a Instructor/a ${data.recipientName},</p>
+
+<p>Le informamos que se ha registrado una nueva solicitud de mantenimiento para un activo en su ambiente:</p>
+
+<ul>
+  <li><strong>N° Seguimiento:</strong> #${data.trackingNumber}</li>
+  <li><strong>Tipo:</strong> ${data.maintenanceType}</li>
+  <li><strong>Solicitante:</strong> ${data.requesterName || "No especificado"}</li>
+  <li><strong>Descripción:</strong> ${data.description || "Sin descripción"}</li>
+  ${data.environmentName ? `<li><strong>Ambiente a su cargo:</strong> ${data.environmentName}</li>` : ""}
+</ul>
+
+<p>Como Instructor responsable del ambiente, por favor esté atento al proceso de mantenimiento.</p>
+
+<p>Gracias por su atención.</p>
+
+<hr>
+<p><em>Este es un mensaje automático, por favor no responda a este correo.</em></p>
+    `
+  }
+
+  /**
+   * Genera el cuerpo del correo para técnicos e instructores (genérico)
    * @param data Datos de la notificación
    */
   private generateTechnicianEmailBody(data: NotificationData): string {
     return `
-      <div style="padding: 20px; border-radius: 10px; background-color: #f9f9f9; border-left: 5px solid #2563eb;">
-        <h2 style="color: #2563eb; margin-top: 0;">📢 Nueva Orden de Trabajo</h2>
-        <p><strong>Estimado/a ${data.recipientName},</strong></p>
-        <p>Se le ha asignado una nueva orden de trabajo. A continuación los detalles:</p>
-        
-        <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold; width: 40%;">N° Seguimiento:</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">#${data.trackingNumber}</td>
-          </tr>
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Tipo:</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${data.maintenanceType}</td>
-          </tr>
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Solicitante:</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${data.requesterName || "No especificado"}</td>
-          </tr>
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Descripción:</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${data.description || "Sin descripción"}</td>
-          </tr>
-        </table>
-        
-        <p>Por favor, revise y atienda la orden lo antes posible.</p>
-        
-        <div style="text-align: center; margin: 25px 0;">
-          <a href="https://mantenimiento.sena.edu.co" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Acceder al Sistema</a>
-        </div>
-      </div>
+<h2>Nueva Solicitud de Mantenimiento</h2>
+
+<p>Estimado/a ${data.recipientName},</p>
+
+<p>Le informamos que se ha registrado una nueva solicitud de mantenimiento que requiere su atención:</p>
+
+<ul>
+  <li><strong>N° Seguimiento:</strong> #${data.trackingNumber}</li>
+  <li><strong>Tipo:</strong> ${data.maintenanceType}</li>
+  <li><strong>Solicitante:</strong> ${data.requesterName || "No especificado"}</li>
+  <li><strong>Descripción:</strong> ${data.description || "Sin descripción"}</li>
+  ${data.environmentName ? `<li><strong>Ambiente:</strong> ${data.environmentName}</li>` : ""}
+</ul>
+
+<p>Por favor, revise esta solicitud en el sistema de mantenimiento.</p>
+
+<p>Gracias por su atención.</p>
+
+<hr>
+<p><em>Este es un mensaje automático, por favor no responda a este correo.</em></p>
     `
   }
 
@@ -208,69 +346,40 @@ _Este es un mensaje automático, por favor no responder directamente._`
    * @param data Datos de la notificación
    */
   private generateEmailBody(data: NotificarFEhcas): string {
-    // Determinar el color según la prioridad
-    let priorityColor = "#2563eb" // Azul por defecto
-    let priorityIcon = "🔵"
-
-    if (data.prioridad.toLowerCase().includes("alta")) {
-      priorityColor = "#dc2626" // Rojo para alta prioridad
-      priorityIcon = "🔴"
-    } else if (data.prioridad.toLowerCase().includes("media")) {
-      priorityColor = "#f59e0b" // Naranja para media prioridad
-      priorityIcon = "🟠"
-    }
-
-    // Determinar el estilo según los días restantes
-    let daysRemainingStyle = ""
+    // Mensaje de alerta según los días restantes
     let daysMessage = ""
 
     if (Number.parseInt(data.daysRemaining) <= 2) {
-      daysRemainingStyle = "color: #dc2626; font-weight: bold;" // Rojo para urgente
-      daysMessage =
-        "<p style='color: #dc2626; font-weight: bold;'>⚠️ ¡ATENCIÓN! Esta orden está a punto de vencer y requiere atención inmediata.</p>"
+      daysMessage = `Esta orden vence en ${data.daysRemaining} día(s) y requiere atención inmediata.`
     } else if (Number.parseInt(data.daysRemaining) <= 5) {
-      daysRemainingStyle = "color: #f59e0b; font-weight: bold;" // Naranja para próximo
-      daysMessage = "<p style='color: #f59e0b;'>⚠️ Esta orden vencerá pronto. Por favor atiéndala con prontitud.</p>"
+      daysMessage = `Esta orden vence en ${data.daysRemaining} día(s). Por favor atiéndala pronto.`
     }
 
     return `
-      <div style="padding: 20px; border-radius: 10px; background-color: #f9f9f9; border-left: 5px solid ${priorityColor};">
-        <h2 style="color: ${priorityColor}; margin-top: 0;">⏰ Orden de Trabajo Próxima a Vencer</h2>
-        <p><strong>Estimado/a ${data.name},</strong></p>
-        <p>Le informamos que tiene una orden de trabajo que está próxima a vencer:</p>
-        
-        ${daysMessage}
-        
-        <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold; width: 40%;">Número de Radicado:</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${data.radicado}</td>
-          </tr>
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Fecha de Vencimiento:</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${data.fechaFin}</td>
-          </tr>
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Días Restantes:</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; ${daysRemainingStyle}">${data.daysRemaining} día(s)</td>
-          </tr>
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Prioridad:</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; color: ${priorityColor};">${priorityIcon} ${data.prioridad}</td>
-          </tr>
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Equipo:</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${data.assetInfo}</td>
-          </tr>
-        </table>
-        
-        <p>Por favor, complete esta orden de trabajo antes de la fecha de vencimiento para evitar retrasos en el mantenimiento.</p>
-        <p>Si ya ha completado el trabajo, por favor registre el informe correspondiente en el sistema.</p>
-        
-        <div style="text-align: center; margin: 25px 0;">
-          <a href="https://mantenimiento.sena.edu.co" style="background-color: ${priorityColor}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Acceder al Sistema</a>
-        </div>
-      </div>
+<h2>Notificación de Orden de Trabajo Próxima a Vencer</h2>
+
+<p>Estimado/a ${data.name},</p>
+
+<p>Le informamos que tiene una orden de trabajo que está próxima a vencer:</p>
+
+${daysMessage ? `<p><strong>${daysMessage}</strong></p>` : ""}
+
+<ul>
+  <li><strong>Número de Radicado:</strong> ${data.radicado}</li>
+  <li><strong>Fecha de Vencimiento:</strong> ${data.fechaFin}</li>
+  <li><strong>Días Restantes:</strong> ${data.daysRemaining} día(s)</li>
+  <li><strong>Prioridad:</strong> ${data.prioridad}</li>
+  <li><strong>Equipo:</strong> ${data.assetInfo}</li>
+</ul>
+
+<p>Por favor, complete esta orden de trabajo antes de la fecha de vencimiento para evitar retrasos en el mantenimiento.</p>
+
+<p>Si ya ha completado el trabajo, por favor registre el informe correspondiente en el sistema.</p>
+
+<p>Gracias por su atención.</p>
+
+<hr>
+<p><em>Este es un mensaje automático, por favor no responda a este correo.</em></p>
     `
   }
 
@@ -279,60 +388,29 @@ _Este es un mensaje automático, por favor no responder directamente._`
    * @param data Datos del técnico y la orden
    */
   private generateTechnicalBody(data: TechnicianNotificationData): string {
-    // Determinar el color según la prioridad
-    let priorityColor = "#2563eb" // Azul por defecto
-    let priorityIcon = "🔵"
-
-    if (data.prioridad.toLowerCase().includes("alta")) {
-      priorityColor = "#dc2626" // Rojo para alta prioridad
-      priorityIcon = "🔴"
-    } else if (data.prioridad.toLowerCase().includes("media")) {
-      priorityColor = "#f59e0b" // Naranja para media prioridad
-      priorityIcon = "🟠"
-    }
-
     return `
-      <div style="padding: 20px; border-radius: 10px; background-color: #f9f9f9; border-left: 5px solid ${priorityColor};">
-        <h2 style="color: ${priorityColor}; margin-top: 0;">🔧 Nueva Orden de Trabajo Asignada</h2>
-        <p><strong>Estimado/a ${data.name},</strong></p>
-        <p>Le informamos que se le ha asignado una nueva orden de trabajo:</p>
-        
-        <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold; width: 40%;">Número de Radicado:</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${data.radicado}</td>
-          </tr>
-          ${
-            data.fechaInicio
-              ? `
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Fecha de Inicio:</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${data.fechaInicio}</td>
-          </tr>
-          `
-              : ""
-          }
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Fecha de Vencimiento:</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${data.fechaFin}</td>
-          </tr>
-         
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Prioridad:</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; color: ${priorityColor};">${priorityIcon} ${data.prioridad}</td>
-          </tr>
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Equipo:</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${data.assetInfo}</td>
-          </tr>
-        </table>
-        
-        <p>Por favor, revise y atienda esta orden lo antes posible.</p>
-        
-        <div style="text-align: center; margin: 25px 0;">
-          <a href="https://mantenimiento.sena.edu.co" style="background-color: ${priorityColor}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Acceder al Sistema</a>
-        </div>
-      </div>
+<h2>Asignación de Nueva Orden de Trabajo</h2>
+
+<p>Estimado/a ${data.name},</p>
+
+<p>Se le ha asignado una nueva orden de trabajo con los siguientes detalles:</p>
+
+<ul>
+  <li><strong>Número de Radicado:</strong> ${data.radicado}</li>
+  ${data.fechaInicio ? `<li><strong>Fecha de Inicio:</strong> ${data.fechaInicio}</li>` : ""}
+  <li><strong>Fecha de Vencimiento:</strong> ${data.fechaFin}</li>
+  <li><strong>Prioridad:</strong> ${data.prioridad}</li>
+  <li><strong>Equipo:</strong> ${data.assetInfo}</li>
+</ul>
+
+<p>Por favor, revise y atienda esta orden lo antes posible según su nivel de prioridad.</p>
+
+<p>Acceda al sistema para más detalles: <a href="https://mantenimiento.sena.edu.co">https://mantenimiento.sena.edu.co</a></p>
+
+<p>Gracias por su atención.</p>
+
+<hr>
+<p><em>Este es un mensaje automático, por favor no responda a este correo.</em></p>
     `
   }
 
@@ -341,65 +419,14 @@ _Este es un mensaje automático, por favor no responder directamente._`
    */
   private generateDefaultEmailBody(): string {
     return `
-      <div style="padding: 20px; border-radius: 10px; background-color: #f9f9f9; border-left: 5px solid #2563eb;">
-        <h2 style="color: #2563eb; margin-top: 0;">📋 Notificación del Sistema de Mantenimiento</h2>
-        <p>Ha recibido una notificación del sistema de mantenimiento.</p>
-        <p>Por favor, acceda al sistema para más detalles.</p>
-        
-        <div style="text-align: center; margin: 25px 0;">
-          <a href="https://mantenimiento.sena.edu.co" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Acceder al Sistema</a>
-        </div>
-      </div>
-    `
-  }
+<h2>Notificación del Sistema de Mantenimiento</h2>
 
-  /**
-   * Envuelve el contenido del correo en una plantilla común
-   * @param content Contenido del correo
-   * @param recipientName Nombre del destinatario
-   */
-  private wrapEmailInTemplate(content: string, recipientName: string): string {
-    const currentDate = new Date().toLocaleDateString("es-ES", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
+<p>Ha recibido una notificación del sistema de mantenimiento.</p>
 
-    return `
-      <!DOCTYPE html>
-      <html lang="es">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Sistema de Mantenimiento SENA</title>
-      </head>
-      <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5; color: #333;">
-        <div style="max-width: 600px; margin: 0 auto; background-color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <!-- Encabezado -->
-          <div style="background-color: #2563eb; padding: 20px; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">Sistema de Mantenimiento SENA</h1>
-          </div>
-          
-          <!-- Contenido principal -->
-          <div style="padding: 20px;">
-            ${content}
-          </div>
-          
-          <!-- Pie de página -->
-          <div style="background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666;">
-            <p>Este correo fue enviado el ${currentDate}</p>
-            <p>Sistema de Gestión de Mantenimiento SENA</p>
-            <p><em>Este es un mensaje automático, por favor no responda a este correo.</em></p>
-            <div style="margin-top: 15px;">
-              <a href="https://mantenimiento.sena.edu.co" style="color: #2563eb; text-decoration: none; margin: 0 10px;">Portal</a>
-              <a href="https://docs.mantenimiento.sena.edu.co" style="color: #2563eb; text-decoration: none; margin: 0 10px;">Documentación</a>
-              <a href="https://www.sena.edu.co" style="color: #2563eb; text-decoration: none; margin: 0 10px;">SENA</a>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
+<p>Por favor, acceda al sistema para más detalles: <a href="https://mantenimiento.sena.edu.co">https://mantenimiento.sena.edu.co</a></p>
+
+<hr>
+<p><em>Este es un mensaje automático, por favor no responda a este correo.</em></p>
     `
   }
 }
