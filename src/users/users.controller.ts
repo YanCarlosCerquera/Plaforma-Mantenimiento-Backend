@@ -54,6 +54,23 @@ export class UsersController extends GenericController<User, CreateUserDto, Upda
     }
   }
 
+  @Get('Instructor')
+  async findAllInstructor() {
+    try {
+      const technicians = await this.usersService.findALLInstructor();
+      return {
+        success: true,
+        data: technicians,
+        message: `Se encontraron ${technicians.length} Instructor`
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Error al obtener los Instructor'
+      };
+    }
+  }
+
   @Get(':id')
   @Roles()
   findOne(@Param('id') id: string) {

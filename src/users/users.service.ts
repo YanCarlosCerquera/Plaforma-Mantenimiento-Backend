@@ -99,6 +99,36 @@ export class UsersService extends GenericService<User, CreateUserDto, UpdateUser
     });
   }
 
+
+
+
+async findALLInstructor() : Promise<User[]> {
+  try {
+    const RolInstructor = await this.rolService.findName("Instructor");
+
+  if(!RolInstructor) {
+    throw new Error("No se encontro Instructor")
+
+  }
+  const InstructorUsers = await this.UserModel.find({
+    assignedRol: RolInstructor._id
+  }).populate({
+    path: 'assignedRol',
+    select: 'name'
+
+  })
+  .select("-photoUrl")
+  .exec();
+
+  console.log(`Se encontraron ${InstructorUsers.length} técnicos`);
+  return InstructorUsers;
+} catch (error) {
+  console.error('Error al buscar técnicos:', error);
+  throw new Error('Error al buscar usuarios técnicos');
+}
+}
+
+
   async findAllTechnical(): Promise<User[]> {
     try {
       // Primero buscamos el rol de técnico
