@@ -12,7 +12,7 @@ import { Assets } from "../assets/entities/asset.entity"
 import { Environment } from "src/environments/entities/environment.entity"
 import { WorkReportPdfService } from "./pdf/work-report-pdf.service"
 import { NotificationService } from "../application-maintenance/services/notification.service"
-import { Response } from "express-serve-static-core";
+import { Response } from "express"
 
 @Injectable()
 export class WorkReportService extends GenericService<WorkReport, CreateWorkReportDto, UpdateWorkReportDto> {
