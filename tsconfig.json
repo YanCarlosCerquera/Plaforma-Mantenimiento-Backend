@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "types": ["node", "express"],
     "module": "commonjs",
     "declaration": true,
     "resolveJsonModule": true,
@@ -12,13 +13,17 @@
     "outDir": "./dist",
     "baseUrl": "./",
     "paths": {
-      "src/*":["src/*"]
+      "src/*":["src/*"],
+      "*" : ["src/*"]
+
     },
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": false,
     "noImplicitAny": false,
     "strictBindCallApply": false,
+
+
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
     "typeRoots": ["./node_modules/@types", "./src/types"]

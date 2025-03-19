@@ -6,13 +6,13 @@ import type { CreateWorkReportDto } from "./dto/create-work_report.dto"
 import type { UpdateWorkReportDto } from "./dto/update-work_report.dto"
 import { GenericService } from "src/Generic/generic.service"
 import { MaintenanceRequest } from "../application-maintenance/entities/application-maintenance.entity"
-import type { Response } from "express"
 import { OrdenesTrabajo } from "../word_orden/entities/word_orden.entity"
 import { User } from "src/users/entities/user.entity"
 import { Assets } from "../assets/entities/asset.entity"
 import { Environment } from "src/environments/entities/environment.entity"
-import { NotificationService } from "../application-maintenance/services/notification.service"
 import { WorkReportPdfService } from "./pdf/work-report-pdf.service"
+import { NotificationService } from "../application-maintenance/services/notification.service"
+import { Response } from "express-serve-static-core";
 
 @Injectable()
 export class WorkReportService extends GenericService<WorkReport, CreateWorkReportDto, UpdateWorkReportDto> {
