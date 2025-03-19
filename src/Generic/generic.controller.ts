@@ -39,6 +39,10 @@ export class GenericController<T extends Document, I, U> {
     }
     return await this.genericService.filter(filters);
   }
+  @Post('bulk')
+createBulk(@Body() createDtos: I[]): Promise<T[]> {
+  return this.genericService.createBulk(createDtos);
+}
 
 }
 

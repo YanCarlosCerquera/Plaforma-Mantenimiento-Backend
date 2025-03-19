@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import mongoose, { Document } from "mongoose";
 import { sparePartsStatus } from "src/enum/sparePartsStatus.enum";
 import { typeMaintenance } from "src/enum/typeMaintenance.enum";
-import { OrdenesTrabajo } from "src/Maintenance/word_orden/entities/word_orden.entity";
+import { OrdenesTrabajo } from "src/maintenance/word_orden/entities/word_orden.entity";
 import { User } from "src/users/entities/user.entity";
 
 @Schema({timestamps: true})

@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import mongoose, { Document } from "mongoose";
-import { Departament } from "src/Parametrization/departaments/entities/departament.entity";
+import { Departament } from "src/parametrization/departaments/entities/departament.entity";
 
 @Schema({timestamps : true})
 export class City extends Document {

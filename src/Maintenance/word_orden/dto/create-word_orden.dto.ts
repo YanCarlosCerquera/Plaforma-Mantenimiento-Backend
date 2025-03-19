@@ -40,4 +40,9 @@ export class CreateWordOrdenDto {
   @IsBoolean()
   @IsOptional()
   state?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  notifiedExpiration?: boolean;
+
 }

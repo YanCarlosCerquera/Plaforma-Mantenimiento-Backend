@@ -7,7 +7,7 @@ import { GenericService } from "src/Generic/generic.service"
 import { MaintenanceRequest } from "./entities/application-maintenance.entity"
 import { Assets } from "../assets/entities/asset.entity"
 import { User } from "src/users/entities/user.entity"
-import { Rol } from "src/Segurity/rol/entities/rol.entity"
+import { Rol } from "src/security/rol/entities/rol.entity"
 import { NotificationService } from "./services/notification.service"
 import { FilterMaintenanceRequestDto } from "./interfaces/filter-maintenance-request.dto"
 
@@ -201,6 +201,7 @@ export class ApplicationMaintenanceService extends GenericService<
               serialNumber: 1,
               inventoryCode: 1,
               accountHolder: 1,
+              location : 1,
               status: 1,
             },
             environmentInfo: {

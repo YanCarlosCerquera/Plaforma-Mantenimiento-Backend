@@ -26,5 +26,10 @@ export class GenericService<T extends Document, I, U> {
   async filter(filters: Partial<Record<keyof T, any>>): Promise<T[]> {
     return await this.model.find(filters as unknown as RootFilterQuery<T>).exec();
   }
+  async createBulk(createDtos: I[]): Promise<T[]> {
+    const createdItems = await this.model.insertMany(createDtos as any[]);
+    return createdItems;
+  }
+
   
 }

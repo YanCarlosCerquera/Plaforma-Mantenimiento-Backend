@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import mongoose, { Document } from "mongoose";
 import { Positions } from "src/enum/position.enum";
 import { TypeDocuments } from "src/enum/typeDocument.enum";
-import { Rol } from "src/Segurity/rol/entities/rol.entity";
+import { Rol } from "src/security/rol/entities/rol.entity";
 
 export type DocumentUser = User & Document;
 

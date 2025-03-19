@@ -1,8 +1,8 @@
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document, Types } from 'mongoose';
-import { MaintenanceRequest } from 'src/Maintenance/application-maintenance/entities/application-maintenance.entity';
+import { MaintenanceRequest } from 'src/maintenance/application-maintenance/entities/application-maintenance.entity';
 import { User } from 'src/users/entities/user.entity';
-import { Maintenance } from 'src/Maintenance/maintenance/entities/maintenance.entity';
+import { Maintenance } from 'src/maintenance/maintenance/entities/maintenance.entity';
 
 @Schema({ timestamps: true }) 
 export class OrdenesTrabajo extends Document {

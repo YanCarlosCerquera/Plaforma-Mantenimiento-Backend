@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import mongoose, { Document } from "mongoose";
-import { View } from "src/Segurity/views/entities/view.entity";
+import { View } from "src/security/views/entities/view.entity";
 
 
 @Schema({timestamps: true})

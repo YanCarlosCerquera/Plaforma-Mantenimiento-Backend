@@ -19,7 +19,6 @@
     async create(createMaintenanceDto: CreateMaintenanceDto): Promise<Maintenance> {
       await this.ValidationMatenimiento(createMaintenanceDto);
       const createdMaintenance = await super.create(createMaintenanceDto);
-      await this.updateWorkOrderState(createMaintenanceDto.wordOrdenId);
       return createdMaintenance;
     }
 
@@ -35,9 +34,7 @@
         throw new BadRequestException('La orden de trabajo no existe');
       }
     }
-    async updateWorkOrderState(workOrderId: string): Promise<void> {
-      await this.ordenesTrabajoModel.findByIdAndUpdate(workOrderId, { state: true });
-    }
+   
     async findAll(): Promise<Maintenance[]> {
       return this.maintenanceModel.find({  })
       .populate('wordOrdenId', 'radicado state')

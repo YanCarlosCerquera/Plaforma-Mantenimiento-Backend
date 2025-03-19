@@ -6,7 +6,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { User } from './entities/user.entity';
 import { Model, RootFilterQuery } from 'mongoose';
 import { GenericService } from 'src/Generic/generic.service';
-import { RolService } from 'src/Segurity/rol/rol.service';
+import { RolService } from 'src/security/rol/rol.service';
 
 @Injectable()
 export class UsersService extends GenericService<User, CreateUserDto, UpdateUserDto> {

@@ -1,9 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
 import { Environment } from 'src/environments/entities/environment.entity';
-import { Category } from 'src/maintenance/categories/entities/category.entity';
-import { TrainingCenter } from 'src/parametrization/training-centers/entities/training-center.entity';
-import { User } from 'src/users/entities/user.entity';
+import { Category } from '../../categories/entities/category.entity';
+
 
 export type AssetsDocument = Assets & Document;
 

@@ -5,7 +5,7 @@ import type { CreateWordOrdenDto } from "./dto/create-word_orden.dto"
 import type { UpdateWordOrdenDto } from "./dto/update-word_orden.dto"
 import { GenericService } from "src/Generic/generic.service"
 import { OrdenesTrabajo } from "./entities/word_orden.entity"
-import { MaintenanceRequest } from "src/Maintenance/application-maintenance/entities/application-maintenance.entity"
+import { MaintenanceRequest } from "src/maintenance/application-maintenance/entities/application-maintenance.entity"
 import { Cron, CronExpression } from "@nestjs/schedule"
 import { User } from "src/users/entities/user.entity"
 import { Assets } from "../assets/entities/asset.entity"
@@ -40,7 +40,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
   }
 
   /**
-   * Actualiza órdenes expiradas cada minuto
+   * Actualiza órdenes expiradas cada 30 minutos
    * Cambia el estado y prioridad de las órdenes vencidas
    */
   @Cron(CronExpression.EVERY_30_MINUTES)
@@ -50,9 +50,10 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       this.logger.debug(`Verificando órdenes expiradas: ${now.toISOString()}`)
 
       // Buscar órdenes expiradas que aún no han sido marcadas como vencidas
+      // MODIFICACIÓN: Buscar órdenes activas (state = false) que han expirado
       const expiredOrders = await this.OrdenModel.find({
         fechaFin: { $lt: now },
-        state: true, // Solo órdenes activas
+        state: false, // Órdenes activas tienen state = false
       })
 
       if (expiredOrders.length === 0) {
@@ -68,13 +69,9 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       for (let i = 0; i < batches; i++) {
         const batch = expiredOrders.slice(i * batchSize, (i + 1) * batchSize)
         const updatePromises = batch.map(async (order) => {
-          // Actualizar la orden
-          order.state = false
+          // Actualizar la orden - NO cambiar el estado, solo la prioridad
           order.prioridad = "Sin Terminar"
           await order.save()
-
-          // Actualizar la solicitud asociada
-          await this.maintenanceModel.findByIdAndUpdate(order.solicitud, { workOrderStatus: false })
 
           // Notificar al técnico sobre la orden vencida
           await this.notifyExpiredOrder(order)
@@ -113,7 +110,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
           .lean()
 
         if (asset) {
-          assetInfo = `${asset.name} (${asset.categoryId.name || "Sin categoría"} - ${asset.location || "Sin ubicación"})`
+          assetInfo = `${asset.name} (${asset.categoryId?.name || "Sin categoría"} - ${asset.location || "Sin ubicación"})`
         }
       }
 
@@ -139,7 +136,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
   }
 
   /**
-   * Verifica órdenes próximas a vencer cada minuto
+   * Verifica órdenes próximas a vencer cada 30 minutos
    * Envía notificaciones a los técnicos
    */
   @Cron(CronExpression.EVERY_30_MINUTES)
@@ -152,12 +149,13 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       this.logger.debug(`Verificando órdenes próximas a vencer: ${now.toISOString()}`)
 
       // Buscar órdenes próximas a vencer que no han sido notificadas
+      // MODIFICACIÓN: Solo buscar órdenes activas (state = false)
       const ordersAboutToExpire = await this.OrdenModel.find({
         fechaFin: {
           $gt: now,
           $lt: threeDaysFromNow,
         },
-        state: true,
+        state: false, // Órdenes activas tienen state = false
         notifiedExpiration: { $ne: true },
       }).populate([
         { path: "tecnicoId", select: "name email phone" },
@@ -208,7 +206,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
           .lean()
 
         if (asset) {
-          assetInfo = `${asset.name} (${asset.categoryId.name || "Sin categoría"} - ${asset.location || "Sin ubicación"})`
+          assetInfo = `${asset.name} (${asset.categoryId?.name || "Sin categoría"} - ${asset.location || "Sin ubicación"})`
         }
       }
 
@@ -264,7 +262,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
     })
 
     if (existingWorkOrder) {
-      throw new BadRequestException(`Ya existe una orden de trabajo para la solicitud ${createDto.solicitud}`)
+      throw new BadRequestException(`Ya existe una orden de trabajo para la solicitud`)
     }
 
     // Verificar si el técnico existe
@@ -284,6 +282,9 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       // Validar la orden y las fechas
       await this.validateWorkOrder(createDto)
       await this.validateDates(createDto)
+
+      // MODIFICACIÓN: Asegurar que el estado inicial sea false (activa)
+      createDto.state = false;
 
       // Crear y guardar la orden
       const createdItem = new this.OrdenModel(createDto)
@@ -373,20 +374,23 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
    * Obtiene información detallada de un activo
    */
   private async getAssetInfo(solicitud: any): Promise<string> {
-    let assetInfo = "No disponible"
-
+    let assetInfo = "No disponible";
+  
     if (solicitud && solicitud.InventoryCode) {
       const asset = await this.assetModel
         .findOne({ inventoryCode: solicitud.InventoryCode })
         .select("name location category")
-        .lean()
-
+        .populate("categoryId") // Add this line to populate the category
+        .lean();
+  
       if (asset) {
-        assetInfo = `${asset.name} (${asset.categoryId.name || "Sin categoría"} - ${asset.location || "Sin ubicación"})`
+        // Add null check for categoryId
+        const categoryName = asset.categoryId?.name || "Sin categoría";
+        assetInfo = `${asset.name} (${categoryName} - ${asset.location || "Sin ubicación"})`;
       }
     }
-
-    return assetInfo
+  
+    return assetInfo;
   }
 
   /**
@@ -459,6 +463,9 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       const diasRestantes = diffDays > 0 ? diffDays : 0
       const diasRetraso = diffDays < 0 ? Math.abs(diffDays) : 0
 
+      // MODIFICACIÓN: Verificar si la orden está finalizada (state = true)
+      const estaFinalizada = orden.state === true;
+
       // Construir respuesta enriquecida
       return {
         ...orden,
@@ -467,8 +474,11 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
         estadoTiempo: {
           diasRestantes,
           diasRetraso,
-          estaVencida: diffDays < 0 && orden.state,
-          estaProximaAVencer: diasRestantes <= 3 && diasRestantes > 0 && orden.state,
+          estaVencida: diffDays < 0 && !orden.state,
+          // MODIFICACIÓN: Si la orden está finalizada, no mostrar como próxima a vencer
+          estaProximaAVencer: !estaFinalizada && diasRestantes <= 3 && diasRestantes > 0 && !orden.state,
+          // NUEVA PROPIEDAD: Indicar si la orden fue ejecutada antes de vencer
+          estaFinalizada: estaFinalizada
         },
         message: !orden.maintenances?.length ? "No tiene mantenimientos realizados" : undefined,
       }
@@ -534,14 +544,20 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
           const diasRestantes = diffDays > 0 ? diffDays : 0
           const diasRetraso = diffDays < 0 ? Math.abs(diffDays) : 0
 
+          // MODIFICACIÓN: Verificar si la orden está finalizada (state = true)
+          const estaFinalizada = orden.state === true;
+
           // Agregar información de tiempo
           return {
             ...orden,
             estadoTiempo: {
               diasRestantes,
               diasRetraso,
-              estaVencida: diffDays < 0 && orden.state,
-              estaProximaAVencer: diasRestantes <= 3 && diasRestantes > 0 && orden.state,
+              estaVencida: diffDays < 0 && !orden.state,
+              // MODIFICACIÓN: Si la orden está finalizada, no mostrar como próxima a vencer
+              estaProximaAVencer: !estaFinalizada && diasRestantes <= 3 && diasRestantes > 0 && !orden.state,
+              // NUEVA PROPIEDAD: Indicar si la orden fue ejecutada antes de vencer
+              estaFinalizada: estaFinalizada
             },
           }
         }),
@@ -630,7 +646,8 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
    */
   private async getTecnicoResponse(user: any, userRole: string): Promise<TecnicoOrdenesResponse> {
     // Crear un filtro dinámico basado en el rol del usuario
-    const ordenesFilter: any = { state: true }
+    // MODIFICACIÓN: Buscar órdenes activas (state = false)
+    const ordenesFilter: any = { state: false }
 
     // Aplicar filtros según el rol
     if (userRole.toLowerCase() === "técnico") {
@@ -773,6 +790,9 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       const diasRestantes = diffDays > 0 ? diffDays : 0
       const diasRetraso = diffDays < 0 ? Math.abs(diffDays) : 0
 
+      // MODIFICACIÓN: Verificar si la orden está finalizada (state = true)
+      const estaFinalizada = orden.state === true;
+
       return {
         id: ordenId,
         radicado: orden.radicado,
@@ -790,8 +810,11 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
         estadoTiempo: {
           diasRestantes,
           diasRetraso,
-          estaVencida: diffDays < 0 && orden.state,
-          estaProximaAVencer: diasRestantes <= 3 && diasRestantes > 0 && orden.state,
+          estaVencida: diffDays < 0 && !orden.state,
+          // MODIFICACIÓN: Si la orden está finalizada, no mostrar como próxima a vencer
+          estaProximaAVencer: !estaFinalizada && diasRestantes <= 3 && diasRestantes > 0 && !orden.state,
+          // NUEVA PROPIEDAD: Indicar si la orden fue ejecutada antes de vencer
+          estaFinalizada: estaFinalizada
         },
         // Agregar información del activo
         activo: [activoInfo],
@@ -849,18 +872,19 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       const totalOrders = await this.OrdenModel.find().exec()
 
       // Filtrar por diferentes estados
+      // MODIFICACIÓN: Ajustar los filtros según la lógica correcta
       const executedOrders = totalOrders.filter((order) => order.state === true).length
       const expiredOrders = totalOrders.filter(
         (order) => new Date(order.fechaFin) < now && order.state === false,
       ).length
       const pendingOrders = totalOrders.filter(
-        (order) => new Date(order.fechaFin) >= now && order.state === true,
+        (order) => new Date(order.fechaFin) >= now && order.state === false,
       ).length
       const aboutToExpireOrders = totalOrders.filter((order) => {
         const fechaFin = new Date(order.fechaFin)
         const diffTime = fechaFin.getTime() - now.getTime()
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-        return diffDays <= 3 && diffDays > 0 && order.state === true
+        return diffDays <= 3 && diffDays > 0 && order.state === false
       }).length
 
       // Estadísticas por técnico
@@ -920,5 +944,49 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       throw new BadRequestException("Error al generar estadísticas: " + error.message)
     }
   }
-}
 
+  /**
+   * Actualiza una orden de trabajo
+   * MODIFICACIÓN: Añadido manejo para finalizar órdenes antes de vencer
+   */
+  async update(id: string, updateDto: UpdateWordOrdenDto): Promise<OrdenesTrabajo> {
+    try {
+      this.logger.log(`Actualizando orden de trabajo con ID: ${id}`)
+
+      // Validar fechas si se proporcionan
+      if (updateDto.fechaInicio || updateDto.fechaFin) {
+        await this.validateDates(updateDto)
+      }
+
+      // Verificar si la orden existe
+      const orden = await this.OrdenModel.findById(id)
+      if (!orden) {
+        throw new NotFoundException(`Orden de trabajo con ID ${id} no encontrada`)
+      }
+
+      // MODIFICACIÓN: Si se está finalizando la orden (cambiando state a true)
+      if (updateDto.state === true && orden.state === false) {
+        this.logger.log(`Finalizando orden de trabajo: ${orden.radicado} antes de su fecha de vencimiento`)
+        
+        // Cancelar cualquier notificación pendiente
+        updateDto.notifiedExpiration = true
+      }
+
+      // Actualizar la orden
+      const updatedOrden = await this.OrdenModel.findByIdAndUpdate(id, updateDto, { new: true })
+      
+      // Si se finalizó la orden, actualizar también la solicitud
+      if (updateDto.state === true && orden.state === false) {
+        await this.maintenanceModel.findByIdAndUpdate(orden.solicitud, { workOrderStatus: false })
+      }
+
+      return updatedOrden
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error
+      }
+      this.logger.error(`Error al actualizar orden de trabajo: ${error.message}`, error.stack)
+      throw new BadRequestException("Error al actualizar la orden de trabajo: " + error.message)
+    }
+  }
+}

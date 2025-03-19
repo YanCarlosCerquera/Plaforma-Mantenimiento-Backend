@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import mongoose, { Document } from "mongoose";
-import { TrainingCenter } from "src/Parametrization/training-centers/entities/training-center.entity";
+import { TrainingCenter } from "src/parametrization/training-centers/entities/training-center.entity";
 
 @Schema({timestamps : true})
 export class Dependece extends Document{

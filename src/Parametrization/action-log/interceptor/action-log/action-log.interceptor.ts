@@ -10,7 +10,7 @@ import { ActionLogService } from '../../action-log.service';
 import { CreateActionLogDto } from '../../dto/create-action-log.dto';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from 'src/auth/auth/decorators/public.decorator';
-import { ViewsService } from 'src/Segurity/views/views.service';
+import { ViewsService } from 'src/security/views/views.service';
 import { LOG_KEY } from 'src/auth/auth/decorators/log.decorator';
 
 @Injectable()

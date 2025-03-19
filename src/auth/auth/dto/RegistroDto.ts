@@ -3,7 +3,7 @@ import { IsString, IsEmail, IsEnum, IsOptional, IsMongoId } from 'class-validato
 import mongoose, { ObjectId } from "mongoose";
 import { Positions } from "src/enum/position.enum";
 import { TypeDocuments } from "src/enum/typeDocument.enum";
-import { Rol } from "src/Segurity/rol/entities/rol.entity";
+import { Rol } from "src/security/rol/entities/rol.entity";
 import { User } from "src/users/entities/user.entity";
 
 export class RegistroDto extends PartialType(User) {

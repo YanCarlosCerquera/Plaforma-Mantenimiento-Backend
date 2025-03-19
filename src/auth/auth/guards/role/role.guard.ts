@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { RolService } from 'src/Segurity/rol/rol.service';
+import { RolService } from 'src/security/rol/rol.service';
 import { ROLES_KEY } from '../../decorators/rol.decorator';
 import { IS_PUBLIC_KEY } from '../../decorators/public.decorator';
 

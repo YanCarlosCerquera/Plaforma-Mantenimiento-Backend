@@ -7,31 +7,31 @@
   import { AppController } from './app.controller';
   import { AppService } from './app.service';
   import { UsersModule } from './users/users.module';
-  import { ModulosModule } from './Segurity/modulos/modulos.module';
-  import { RolModule } from './Segurity/rol/rol.module';
-  import { ViewsModule } from './Segurity/views/views.module';
+  import { ModulosModule } from './security/modulos/modulos.module';
+  import { RolModule } from './security/rol/rol.module';
+  import { ViewsModule } from './security/views/views.module';
   import { AuthModule } from './auth/auth/auth.module';
-  import { DepartamentsModule } from './Parametrization/departaments/departaments.module';
+  import { DepartamentsModule } from './parametrization/departaments/departaments.module';
   import { TrainingCentersModule } from './parametrization/training-centers/training-centers.module';
-  import { CityModule } from './Parametrization/city/city.module';
-  import { DependeceModule } from './Parametrization/dependece/dependece.module';
+  import { CityModule } from './parametrization/city/city.module';
+  import { DependeceModule } from './parametrization/dependece/dependece.module';
   import { CategoriesModule } from './maintenance/categories/categories.module';
-  import { AssetsModule } from './Maintenance/assets/assets.module';
-  import { ApplicationMaintenanceModule } from './Maintenance/application-maintenance/application-maintenance.module';
-  import { WordOrdenModule } from './Maintenance/word_orden/word_orden.module';
-  import { MaintenanceModule } from './Maintenance/maintenance/maintenance.module';
+  import { AssetsModule } from './maintenance/assets/assets.module';
+  import { ApplicationMaintenanceModule } from './maintenance/application-maintenance/application-maintenance.module';
+  import { WordOrdenModule } from './maintenance/word_orden/word_orden.module';
+  import { MaintenanceModule } from './maintenance/maintenance/maintenance.module';
   import { ActionLogModule } from './parametrization/action-log/action-log.module';
-  import { WorkReportModule } from './Maintenance/work_report/work_report.module';
+  import { WorkReportModule } from './maintenance/work_report/work_report.module';
   import { HttpModule } from '@nestjs/axios';
-  import { WssModule } from './Maintenance/application-maintenance/wss.module';
-  import { ConfigModule } from './Parametrization/config/config.module';
-  import { ConfigService } from './Parametrization/config/config.service';
+  import { WssModule } from './maintenance/application-maintenance/wss.module';
+  import { ConfigModule } from './parametrization/config/config.module';
+  import { ConfigService } from './parametrization/config/config.service';
 import { EnvironmentsModule } from './environments/environments.module';
 
   @Module({
     imports: [
       ConfigModule,
-      MongooseModule.forRoot('mongodb://localhost:27017/sena'),
+      MongooseModule.forRoot("mongodb://localhost:27017/sena"),
       ScheduleModule.forRoot(),
       MailerModule.forRootAsync({
         imports: [ConfigModule],

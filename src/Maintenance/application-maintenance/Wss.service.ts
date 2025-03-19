@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
-import { ConfigService } from 'src/Parametrization/config/config.service';
+import { ConfigService } from 'src/parametrization/config/config.service';
 
 @Injectable()
 export class UltraMsgService {

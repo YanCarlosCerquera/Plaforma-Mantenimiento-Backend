@@ -2,7 +2,7 @@ import { ConflictException, Injectable, UnauthorizedException, NotFoundException
 import { JwtService } from '@nestjs/jwt';
 import { MailerService } from '@nestjs-modules/mailer';
 import { UsersService } from 'src/users/users.service';
-import { RolService } from 'src/Segurity/rol/rol.service';
+import { RolService } from 'src/security/rol/rol.service';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/Login';
 import { hash, randomBytes } from 'crypto';
@@ -10,7 +10,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { User } from 'src/users/entities/user.entity';
 import { Model } from 'mongoose';
 import { RegistroDto } from './dto/RegistroDto';
-import { UltraMsgService } from 'src/Maintenance/application-maintenance/Wss.service';
+import { UltraMsgService } from 'src/maintenance/application-maintenance/Wss.service';
 
 @Injectable()
 export class AuthService {

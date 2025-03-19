@@ -4,7 +4,7 @@ import { UsersController } from './users.controller';
 import { User, SchemaUser } from './entities/user.entity';
 import { MongooseModule } from '@nestjs/mongoose';
 import { MulterModule } from '@nestjs/platform-express';
-import { RolModule } from 'src/Segurity/rol/rol.module';
+import { RolModule } from 'src/security/rol/rol.module';
 
 @Module({
   imports: [

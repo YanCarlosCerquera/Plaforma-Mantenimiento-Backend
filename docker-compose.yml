@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sena-api
+    restart: always
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.${NODE_ENV}
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      - mongodb
+    networks:
+      - sena-network
+
+  mongodb:
+    image: mongo:latest
+    container_name: sena-mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - sena-network
+
+networks:
+  sena-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:

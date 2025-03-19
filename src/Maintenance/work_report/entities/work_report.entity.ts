@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import mongoose, { Document, Types } from "mongoose";
-import { OrdenesTrabajo } from "src/Maintenance/word_orden/entities/word_orden.entity";
+import { OrdenesTrabajo } from "src/maintenance/word_orden/entities/word_orden.entity";
 
 @Schema({timestamps : true})
 export class WorkReport extends Document {

@@ -41,7 +41,7 @@
     "cloudinary": "^2.5.1",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.4.7",
     "force": "^0.0.3",
     "googleapis": "^105.0.0",
     "infobip": "^0.1.0",
