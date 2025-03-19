@@ -1,4 +1,5 @@
   import { Module } from '@nestjs/common';
+  import { ConfigModule } from '@nestjs/config';
   import { MongooseModule } from '@nestjs/mongoose';
   import { ScheduleModule } from '@nestjs/schedule';
   import { MailerModule } from '@nestjs-modules/mailer';
@@ -24,17 +25,20 @@
   import { WorkReportModule } from './maintenance/work_report/work_report.module';
   import { HttpModule } from '@nestjs/axios';
   import { WssModule } from './maintenance/application-maintenance/wss.module';
-  import { ConfigModule } from './parametrization/config/config.module';
+  import { ConfigModule as ParametrizaciónConfigModule } from './parametrization/config/config.module';
   import { ConfigService } from './parametrization/config/config.service';
 import { EnvironmentsModule } from './environments/environments.module';
 
   @Module({
     imports: [
-      ConfigModule,
+      ConfigModule.forRoot({
+        isGlobal: true, 
+        envFilePath: '.env.production',
+      }),
       MongooseModule.forRoot(process.env.MONGO_URI),
       ScheduleModule.forRoot(),
       MailerModule.forRootAsync({
-        imports: [ConfigModule],
+        imports: [ParametrizaciónConfigModule],
         inject: [ConfigService],
         useFactory: async (configService: ConfigService) => {
           const emailConfig = await configService.findEmailConfig();
@@ -48,7 +52,7 @@ import { EnvironmentsModule } from './environments/environments.module';
               },
             },
             defaults: {
-              from: `"No Reply" <${emailConfig.defaults}>`,
+              from: `No Reply <${emailConfig.defaults}>`,
             },
             template: {
               dir: join(__dirname, 'templates'),
