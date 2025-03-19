@@ -31,7 +31,7 @@ import { EnvironmentsModule } from './environments/environments.module';
   @Module({
     imports: [
       ConfigModule,
-      MongooseModule.forRoot("mongodb://localhost:27017/sena"),
+      MongooseModule.forRoot(process.env.MONGO_URI),
       ScheduleModule.forRoot(),
       MailerModule.forRootAsync({
         imports: [ConfigModule],

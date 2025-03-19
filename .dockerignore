@@ -1,5 +1,42 @@
-node_modules
-dist
-npm-debug.log
-.DS_Store
-.env
+# Node.js dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Environment and secrets
+.env*
+*.pem
+*.key
+*.crt
+
+# Version control
+.git/
+.gitignore
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Documentation
+*.md
+README*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Test files
+test/
+*.log
+
+# Docker files
+Dockerfile*
+docker-compose*
+
+# Local development
+.local/
+local/
