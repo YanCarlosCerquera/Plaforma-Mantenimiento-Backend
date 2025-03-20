@@ -7,9 +7,9 @@ import { GenericService } from "src/Generic/generic.service"
 import { MaintenanceRequest } from "./entities/application-maintenance.entity"
 import { Assets } from "../assets/entities/asset.entity"
 import { User } from "src/users/entities/user.entity"
-import { Rol } from "src/security/rol/entities/rol.entity"
 import { NotificationService } from "./services/notification.service"
 import { FilterMaintenanceRequestDto } from "./interfaces/filter-maintenance-request.dto"
+import { Rol } from "src/security/rol/entities/rol.entity"
 
 /**
  * Servicio para gestionar solicitudes de mantenimiento de aplicaciones
