@@ -45,4 +45,7 @@ export class CreateWordOrdenDto {
   @IsOptional()
   notifiedExpiration?: boolean;
 
+  @IsOptional()
+  lastNotificationDate?: Date; 
+
 }

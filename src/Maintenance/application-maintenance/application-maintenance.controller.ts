@@ -6,8 +6,9 @@ import { GenericController } from 'src/Generic/generic.controller';
 import { MaintenanceRequest } from './entities/application-maintenance.entity';
 import { ApiQuery } from '@nestjs/swagger';
 import { Public } from 'src/auth/auth/decorators/public.decorator';
+import { Log } from 'src/auth/auth/decorators/log.decorator';
 @Public()
-
+@Log('solicitud de mantenimiento', '/mantenimientos')
 @Controller('application-maintenance')
 export class ApplicationMaintenanceController extends GenericController<MaintenanceRequest ,CreateApplicationMaintenanceDto , UpdateApplicationMaintenanceDto> {
   constructor(private readonly applicationMaintenanceService: ApplicationMaintenanceService){

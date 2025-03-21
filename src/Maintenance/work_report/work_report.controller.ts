@@ -7,7 +7,9 @@ import { WorkReport } from './entities/work_report.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Types } from 'mongoose';
 import { Response } from 'express';
+import { Log } from 'src/auth/auth/decorators/log.decorator';
 
+@Log('informes de mantenimiento', '/mantenimientos')
 @Controller('work-report')
 export class WorkReportController extends GenericController<WorkReport , CreateWorkReportDto,UpdateWorkReportDto> {
   constructor(private readonly workReportService: WorkReportService) {

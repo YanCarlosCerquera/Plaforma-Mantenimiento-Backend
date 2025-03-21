@@ -6,7 +6,9 @@ import { GenericController } from 'src/Generic/generic.controller';
 import { OrdenesTrabajo } from './entities/word_orden.entity';
 import { Public } from 'src/auth/auth/decorators/public.decorator';
 import { TecnicoOrdenesResponse } from './TecnicoOrdenesResponse';
+import { Log } from 'src/auth/auth/decorators/log.decorator';
 @Public()
+@Log('ordenes de trabajo', '/mantenimientos')
 @Controller('word-orden')
 export class WordOrdenController extends GenericController <OrdenesTrabajo , CreateWordOrdenDto , UpdateWordOrdenDto>{
   constructor(private readonly wordOrdenService: WordOrdenService) {

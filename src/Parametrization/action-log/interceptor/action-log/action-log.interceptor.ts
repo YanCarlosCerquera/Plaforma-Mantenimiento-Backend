@@ -10,8 +10,8 @@ import { ActionLogService } from '../../action-log.service';
 import { CreateActionLogDto } from '../../dto/create-action-log.dto';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from 'src/auth/auth/decorators/public.decorator';
-import { ViewsService } from 'src/security/views/views.service';
 import { LOG_KEY } from 'src/auth/auth/decorators/log.decorator';
+import { ViewsService } from 'src/security/views/views.service';
 
 @Injectable()
 export class ActionLogInterceptor implements NestInterceptor {
@@ -24,28 +24,33 @@ export class ActionLogInterceptor implements NestInterceptor {
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
     const httpContext = context.switchToHttp();
     const request: Request = httpContext.getRequest();
-    const logConfig =
-      this.reflector.get<{ action: string; prefix: string }>(
-        LOG_KEY,
-        context.getHandler(),
-      ) || this.reflector.get<{ action: string; prefix: string }>(
-        LOG_KEY,
-        context.getClass(),
-      );;
+    const logConfig = 
+      this.reflector.get(LOG_KEY, context.getHandler()) ??
+      this.reflector.get(LOG_KEY, context.getClass());
+
 
     const isPublic = this.reflector.get<boolean>(IS_PUBLIC_KEY, context.getHandler())
 
-    if (isPublic || !logConfig) {
+    if (!logConfig) {
+      return next.handle();
+    }
+
+    if (isPublic && !logConfig) {
       return next.handle();
     }
 
     const { user, method } = request;
     const views = await this.viewService.findByRoute(logConfig?.prefix || '');
-    const commonModuloId = views.every(
+    let commonModuloId = views.every(
       (view) => view.moduloId.equals(views[0].moduloId)
     )
       ? views[0].moduloId._id
       : null;
+
+      if (!commonModuloId) {
+        const matchedView = views.find((view) => view.route === logConfig?.prefix);
+        commonModuloId = matchedView ? matchedView.moduloId._id : null;
+      }
 
     const actionLogDto: CreateActionLogDto = {
       userId: user ? String(user._id) : null,

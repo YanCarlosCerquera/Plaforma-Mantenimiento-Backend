@@ -42,6 +42,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
   /**
    * Actualiza órdenes expiradas cada 30 minutos
    * Cambia el estado y prioridad de las órdenes vencidas
+   * MODIFICACIÓN: Marca órdenes como notifiedExpiration=true cuando llegan a su fecha fin
    */
   @Cron(CronExpression.EVERY_30_MINUTES)
   async updateExpiredOrders(): Promise<void> {
@@ -49,18 +50,35 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       const now = new Date()
       this.logger.debug(`Verificando órdenes expiradas: ${now.toISOString()}`)
 
-      // Buscar órdenes expiradas que aún no han sido marcadas como vencidas
-      // MODIFICACIÓN: Buscar órdenes activas (state = false) que han expirado
+      // Formatear la fecha actual para comparar solo año, mes y día
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      
+      // Buscar órdenes que vencen hoy o ya vencieron y aún no han sido marcadas como notificadas
       const expiredOrders = await this.OrdenModel.find({
-        fechaFin: { $lt: now },
-        state: false, // Órdenes activas tienen state = false
+        $or: [
+          // Órdenes que vencen exactamente hoy (comparando solo fecha, no hora)
+          {
+            fechaFin: {
+              $gte: today,
+              $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000) // Mañana
+            },
+            state: false,
+            notifiedExpiration: { $ne: true }
+          },
+          // Órdenes que ya vencieron y no han sido notificadas
+          {
+            fechaFin: { $lt: today },
+            state: false,
+            notifiedExpiration: { $ne: true }
+          }
+        ]
       })
 
       if (expiredOrders.length === 0) {
         return
       }
 
-      this.logger.log(`Encontradas ${expiredOrders.length} órdenes expiradas para actualizar`)
+      this.logger.log(`Encontradas ${expiredOrders.length} órdenes que vencen hoy o ya vencieron para actualizar`)
 
       // Procesar en lotes para mejor rendimiento
       const batchSize = 10
@@ -71,10 +89,16 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
         const updatePromises = batch.map(async (order) => {
           // Actualizar la orden - NO cambiar el estado, solo la prioridad
           order.prioridad = "Sin Terminar"
+          
+          // MODIFICACIÓN: Marcar como notificada para que no se envíen más notificaciones
+          // una vez que llega a la fecha fin
+          order.notifiedExpiration = true
           await order.save()
 
-          // Notificar al técnico sobre la orden vencida
+          // Enviar una última notificación (solo si no ha sido notificada hoy)
           await this.notifyExpiredOrder(order)
+          
+          this.logger.log(`Orden ${order.radicado} marcada como notifiedExpiration=true al llegar a fecha fin`)
         })
 
         await Promise.all(updatePromises)
@@ -91,6 +115,12 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
    */
   private async notifyExpiredOrder(order: OrdenesTrabajo): Promise<void> {
     try {
+      // Si la orden ya está completada, no enviar notificación
+      if (order.state === true) {
+        this.logger.log(`Orden ${order.radicado} ya completada, no se envía notificación de vencimiento`)
+        return
+      }
+
       const tecnico = await this.userModel.findById(order.tecnicoId).select("name email phone").lean()
 
       if (!tecnico || !tecnico.email) {
@@ -130,6 +160,8 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
           assetInfo: assetInfo,
         },
       )
+      
+      this.logger.log(`Notificación final de vencimiento enviada para orden ${order.radicado}`)
     } catch (error) {
       this.logger.error(`Error al notificar orden vencida: ${error.message}`)
     }
@@ -137,7 +169,8 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
 
   /**
    * Verifica órdenes próximas a vencer cada 30 minutos
-   * Envía notificaciones a los técnicos
+   * Envía notificaciones a los técnicos (una por día)
+   * MODIFICACIÓN: Implementa notificación diaria para órdenes próximas a vencer
    */
   @Cron(CronExpression.EVERY_30_MINUTES)
   async checkOrdersAboutToExpire(): Promise<void> {
@@ -145,18 +178,21 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       const now = new Date()
       const threeDaysFromNow = new Date()
       threeDaysFromNow.setDate(now.getDate() + 3)
+      
+      // Formatear la fecha actual para comparar solo año, mes y día
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
       this.logger.debug(`Verificando órdenes próximas a vencer: ${now.toISOString()}`)
 
-      // Buscar órdenes próximas a vencer que no han sido notificadas
-      // MODIFICACIÓN: Solo buscar órdenes activas (state = false)
+      // Buscar órdenes próximas a vencer (entre hoy y 3 días después)
+      // que no hayan sido marcadas como completamente notificadas
       const ordersAboutToExpire = await this.OrdenModel.find({
         fechaFin: {
           $gt: now,
           $lt: threeDaysFromNow,
         },
         state: false, // Órdenes activas tienen state = false
-        notifiedExpiration: { $ne: true },
+        notifiedExpiration: { $ne: true }, // No completamente notificadas
       }).populate([
         { path: "tecnicoId", select: "name email phone" },
         { path: "solicitud", select: "trackingNumber InventoryCode maintenanceType" },
@@ -175,7 +211,25 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       for (let i = 0; i < batches; i++) {
         const batch = ordersAboutToExpire.slice(i * batchSize, (i + 1) * batchSize)
         const notificationPromises = batch.map(async (order) => {
+          // Verificar si ya se notificó hoy (usando lastNotificationDate)
+          const lastNotificationDate = order.lastNotificationDate ? new Date(order.lastNotificationDate) : null
+          const lastNotificationDay = lastNotificationDate ? 
+            new Date(lastNotificationDate.getFullYear(), lastNotificationDate.getMonth(), lastNotificationDate.getDate()) : 
+            null
+          
+          // Si ya se notificó hoy, no enviar otra notificación
+          if (lastNotificationDay && lastNotificationDay.getTime() === today.getTime()) {
+            this.logger.log(`Orden ${order.radicado} ya fue notificada hoy, saltando notificación`)
+            return
+          }
+          
+          // Procesar la orden y enviar notificación
           await this.processOrderAboutToExpire(order, now)
+          
+          // Actualizar la fecha de última notificación
+          await this.OrdenModel.findByIdAndUpdate(order._id, { 
+            lastNotificationDate: now 
+          })
         })
 
         await Promise.all(notificationPromises)
@@ -191,6 +245,12 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
    */
   private async processOrderAboutToExpire(order: OrdenesTrabajo, now: Date): Promise<void> {
     try {
+      // Si la orden ya está completada, no enviar notificación
+      if (order.state === true) {
+        this.logger.log(`Orden ${order.radicado} ya completada, no se procesa como próxima a vencer`)
+        return
+      }
+      
       const daysRemaining = Math.ceil((order.fechaFin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
       const userToNotify = order.tecnicoId
 
@@ -219,7 +279,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       }
 
       this.logger.log(
-        `Enviando notificación a ${userToNotify.name} (${userToNotify.email}) para orden ${order.radicado}`,
+        `Enviando notificación a ${userToNotify.name} (${userToNotify.email}) para orden ${order.radicado} - Días restantes: ${daysRemaining}`,
       )
 
       await this.notificationService.sendNotificationEmail(
@@ -239,8 +299,13 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
         },
       )
 
-      // Marcar la orden como notificada
-      await this.OrdenModel.findByIdAndUpdate(order._id, { notifiedExpiration: true })
+      // Si es el último día (daysRemaining <= 0), marcar como completamente notificada
+      if (daysRemaining <= 0) {
+        await this.OrdenModel.findByIdAndUpdate(order._id, { 
+          notifiedExpiration: true 
+        })
+        this.logger.log(`Orden ${order.radicado} marcada como completamente notificada en su último día`)
+      }
     } catch (error) {
       this.logger.error(`Error al procesar orden próxima a vencer: ${error.message}`)
     }
@@ -285,6 +350,10 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
 
       // MODIFICACIÓN: Asegurar que el estado inicial sea false (activa)
       createDto.state = false;
+      // Inicializar notifiedExpiration como false
+      createDto.notifiedExpiration = false;
+      // Inicializar lastNotificationDate como null
+      createDto.lastNotificationDate = null;
 
       // Crear y guardar la orden
       const createdItem = new this.OrdenModel(createDto)
@@ -335,6 +404,11 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
             assetInfo: assetInfo,
           },
         )
+        
+        // Registrar esta notificación inicial
+        await this.OrdenModel.findByIdAndUpdate(savedItem._id, { 
+          lastNotificationDate: new Date() 
+        })
       }
 
       this.logger.log(`Orden de trabajo creada exitosamente: ${savedItem.radicado}`)
@@ -463,7 +537,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       const diasRestantes = diffDays > 0 ? diffDays : 0
       const diasRetraso = diffDays < 0 ? Math.abs(diffDays) : 0
 
-      // MODIFICACIÓN: Verificar si la orden está finalizada (state = true)
+      // Verificar si la orden está finalizada (state = true)
       const estaFinalizada = orden.state === true;
 
       // Construir respuesta enriquecida
@@ -474,10 +548,8 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
         estadoTiempo: {
           diasRestantes,
           diasRetraso,
-          estaVencida: diffDays < 0 && !orden.state,
-          // MODIFICACIÓN: Si la orden está finalizada, no mostrar como próxima a vencer
-          estaProximaAVencer: !estaFinalizada && diasRestantes <= 3 && diasRestantes > 0 && !orden.state,
-          // NUEVA PROPIEDAD: Indicar si la orden fue ejecutada antes de vencer
+          estaVencida: diffDays < 0 && !estaFinalizada,
+          estaProximaAVencer: !estaFinalizada && diasRestantes <= 3 && diasRestantes > 0,
           estaFinalizada: estaFinalizada
         },
         message: !orden.maintenances?.length ? "No tiene mantenimientos realizados" : undefined,
@@ -544,7 +616,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
           const diasRestantes = diffDays > 0 ? diffDays : 0
           const diasRetraso = diffDays < 0 ? Math.abs(diffDays) : 0
 
-          // MODIFICACIÓN: Verificar si la orden está finalizada (state = true)
+          // Verificar si la orden está finalizada (state = true)
           const estaFinalizada = orden.state === true;
 
           // Agregar información de tiempo
@@ -553,10 +625,8 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
             estadoTiempo: {
               diasRestantes,
               diasRetraso,
-              estaVencida: diffDays < 0 && !orden.state,
-              // MODIFICACIÓN: Si la orden está finalizada, no mostrar como próxima a vencer
-              estaProximaAVencer: !estaFinalizada && diasRestantes <= 3 && diasRestantes > 0 && !orden.state,
-              // NUEVA PROPIEDAD: Indicar si la orden fue ejecutada antes de vencer
+              estaVencida: diffDays < 0 && !estaFinalizada,
+              estaProximaAVencer: !estaFinalizada && diasRestantes <= 3 && diasRestantes > 0,
               estaFinalizada: estaFinalizada
             },
           }
@@ -790,7 +860,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       const diasRestantes = diffDays > 0 ? diffDays : 0
       const diasRetraso = diffDays < 0 ? Math.abs(diffDays) : 0
 
-      // MODIFICACIÓN: Verificar si la orden está finalizada (state = true)
+      // Verificar si la orden está finalizada (state = true)
       const estaFinalizada = orden.state === true;
 
       return {
@@ -810,10 +880,8 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
         estadoTiempo: {
           diasRestantes,
           diasRetraso,
-          estaVencida: diffDays < 0 && !orden.state,
-          // MODIFICACIÓN: Si la orden está finalizada, no mostrar como próxima a vencer
-          estaProximaAVencer: !estaFinalizada && diasRestantes <= 3 && diasRestantes > 0 && !orden.state,
-          // NUEVA PROPIEDAD: Indicar si la orden fue ejecutada antes de vencer
+          estaVencida: diffDays < 0 && !estaFinalizada,
+          estaProximaAVencer: !estaFinalizada && diasRestantes <= 3 && diasRestantes > 0,
           estaFinalizada: estaFinalizada
         },
         // Agregar información del activo
@@ -968,7 +1036,7 @@ export class WordOrdenService extends GenericService<OrdenesTrabajo, CreateWordO
       if (updateDto.state === true && orden.state === false) {
         this.logger.log(`Finalizando orden de trabajo: ${orden.radicado} antes de su fecha de vencimiento`)
         
-        // Cancelar cualquier notificación pendiente
+        // Cancelar cualquier notificación pendiente marcando como notificada
         updateDto.notifiedExpiration = true
       }
 

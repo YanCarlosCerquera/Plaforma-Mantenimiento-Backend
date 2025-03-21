@@ -21,6 +21,9 @@ export class OrdenesTrabajo extends Document {
   @Prop({ type: Date })
   fechaFin: Date;
 
+  @Prop({ type: Date, default: null })
+  lastNotificationDate?: Date; 
+
   @Prop({ 
     type: String, 
     enum: ['alta', 'media', 'baja', 'Sin Terminar'],

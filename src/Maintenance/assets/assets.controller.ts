@@ -7,13 +7,16 @@ import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 import { Assets } from './entities/asset.entity';
+import { Log } from 'src/auth/auth/decorators/log.decorator';
 @Public()
+@Log('bienes', '/assets')
 @Controller('assets')
 export class AssetsController extends GenericController<Assets, CreateAssetDto, UpdateAssetDto> {
   constructor(private readonly assetsService: AssetsService) {
     super(assetsService)
   }
   @Post()
+  @Log('Bienes', '/assets/new')
   @Public()
   @UseInterceptors(FileInterceptor('image', {
     dest: './uploads',
